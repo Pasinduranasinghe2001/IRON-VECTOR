@@ -22,10 +22,13 @@ namespace IronVector
         GUIStyle _titleStyle, _subStyle, _labelStyle, _boxStyle, _btnStyle, _accentBtnStyle;
         Texture2D _darkTex, _panelTex, _accentTex;
 
+        AudioListener _menuListener;
+
         void Awake()
         {
-            if (networkManager == null) networkManager = FindFirstObjectByType<NetworkManager>();
+            if (networkManager == null) networkManager = FindAnyObjectByType<NetworkManager>();
             if (menuCamera == null) menuCamera = Camera.main;
+            if (menuCamera != null) _menuListener = menuCamera.GetComponent<AudioListener>();
             _selectedMode = (int)NetworkGameServer.SelectedMode;
         }
 
@@ -86,6 +89,8 @@ namespace IronVector
             bool localPlayerActive = PlayerIdentity.Local != null;
             if (menuCamera != null && menuCamera.enabled == localPlayerActive)
                 menuCamera.enabled = !localPlayerActive;
+            if (_menuListener != null && _menuListener.enabled == localPlayerActive)
+                _menuListener.enabled = !localPlayerActive;
         }
 
         void OnClientState(ClientConnectionStateArgs args)

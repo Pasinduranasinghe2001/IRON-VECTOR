@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de62422087824b748b7fa470f0c8668f, type: 3}
+  m_Name: P226_Sidearm
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
+  weaponName: P226 Sidearm
+  category: 4
+  automatic: 0
+  fireRateRPM: 420
+  damage: 26
+  headshotMultiplier: 1.75
+  range: 85
+  pellets: 1
+  hipSpread: 1.35
+  adsSpread: 0.3
+  recoilVertical: 1.25
+  recoilHorizontal: 0.35
+  adsFovMultiplier: 0.86
+  adsSpeed: 16
+  magazineSize: 15
+  reserveAmmo: 60
+  reloadTime: 1.25
+  bodyColor: {r: 0.15, g: 0.15, b: 0.16, a: 1}
+  accentColor: {r: 0.28, g: 0.28, b: 0.3, a: 1}
+  tracerColor: {r: 1, g: 0.88, b: 0.45, a: 1}
+  shotPitch: 1.15
+  modelScale: {x: 0.042, y: 0.06, z: 0.24}
+  barrelLength: 0.14

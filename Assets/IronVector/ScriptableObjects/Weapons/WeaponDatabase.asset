@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 820a75dfb52193545a99a9c7bdefca0c, type: 3}
+  m_Name: WeaponDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponDatabase
+  weapons:
+  - {fileID: 11400000, guid: 7cff80162a6eaea41aae44133e737ad9, type: 2}
+  - {fileID: 11400000, guid: 110c3958116746845a1f60abd23f9dd9, type: 2}
+  - {fileID: 11400000, guid: 883af2b994325f14eb849750c4f7c086, type: 2}
+  - {fileID: 11400000, guid: c5ea59f56610f8847bc2d2e2c5efe03e, type: 2}
+  - {fileID: 11400000, guid: e7004f51c87bc9948a1738d4cba2fb27, type: 2}
+  sidearmIndex: 4

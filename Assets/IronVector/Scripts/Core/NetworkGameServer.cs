@@ -37,7 +37,7 @@ namespace IronVector
         void Awake()
         {
             Instance = this;
-            if (networkManager == null) networkManager = FindFirstObjectByType<NetworkManager>();
+            if (networkManager == null) networkManager = FindAnyObjectByType<NetworkManager>();
         }
 
         void Start()

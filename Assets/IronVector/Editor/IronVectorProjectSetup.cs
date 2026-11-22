@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using FishNet.Component.Transforming;
 using FishNet.Managing;
 using FishNet.Managing.Object;
+using FishNet.Managing.Transporting;
 using FishNet.Object;
 using FishNet.Transporting.Tugboat;
 using UnityEditor;
@@ -31,6 +32,7 @@ namespace IronVector.Editor
         static void PromptFirstOpenSetup()
         {
             if (Application.isBatchMode) return;
+            EnsureGICacheOnDDrive(silent: true);
             EditorApplication.delayCall += () =>
             {
                 if (!FileExists(ArenaScenePath) && !SessionState.GetBool("iv_prompted", false))
@@ -46,6 +48,23 @@ namespace IronVector.Editor
                     }
                 }
             };
+        }
+
+        [MenuItem("Iron Vector/Redirect GI Cache to D Drive", priority = 20)]
+        public static void MenuRedirectGICache() => EnsureGICacheOnDDrive(silent: false);
+
+        static void EnsureGICacheOnDDrive(bool silent)
+        {
+            if (!System.IO.Directory.Exists("D:\\")) return;
+            if (silent && EditorPrefs.GetBool("iv_gi_d_configured", false)) return;
+
+            const string giPath = "D:/Unity/GICache";
+            System.IO.Directory.CreateDirectory(giPath);
+            EditorPrefs.SetBool("GICacheEnableCustomPath", true);
+            EditorPrefs.SetString("GICacheFolder", giPath);
+            EditorPrefs.SetBool("iv_gi_d_configured", true);
+            if (!silent)
+                Debug.Log($"[IRON VECTOR] Unity GI Cache redirected to {giPath}.");
         }
 
         [MenuItem("Iron Vector/Build Arena & Prefabs (One-Click Setup)", priority = 1)]
@@ -413,8 +432,11 @@ namespace IronVector.Editor
             var volGo = new GameObject("Global Volume");
             var vol = volGo.AddComponent<Volume>();
             vol.isGlobal = true;
+            string volPath = SettingsDir + "/ArenaVolumeProfile.asset";
+            if (AssetDatabase.LoadAssetAtPath<VolumeProfile>(volPath) != null)
+                AssetDatabase.DeleteAsset(volPath);
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            AssetDatabase.CreateAsset(profile, SettingsDir + "/ArenaVolumeProfile.asset");
+            AssetDatabase.CreateAsset(profile, volPath);
 
             var bloom = profile.Add<Bloom>(true);
             bloom.intensity.Override(0.42f);
@@ -522,13 +544,17 @@ namespace IronVector.Editor
             menuCam.farClipPlane = 450f;
             var menuCamData = menuCamGo.AddComponent<UniversalAdditionalCameraData>();
             menuCamData.renderPostProcessing = true;
+            menuCamGo.AddComponent<AudioListener>();
 
             // NetworkManager + Bootstrap
             var netGo = new GameObject("NetworkManager");
             NetworkManager nm = netGo.AddComponent<NetworkManager>();
-            Tugboat tugboat = netGo.AddComponent<Tugboat>();
-            nm.TransportManager.Transport = tugboat;
+            TransportManager tm = netGo.GetComponent<TransportManager>() ?? netGo.AddComponent<TransportManager>();
+            Tugboat tugboat = netGo.GetComponent<Tugboat>() ?? netGo.AddComponent<Tugboat>();
+            tm.Transport = tugboat;
             if (spawnables != null) nm.SpawnablePrefabs = spawnables;
+            EditorUtility.SetDirty(tm);
+            EditorUtility.SetDirty(nm);
 
             SerializedObject nmSo = new SerializedObject(nm);
             SerializedProperty refreshProp = nmSo.FindProperty("_refreshDefaultPrefabs");

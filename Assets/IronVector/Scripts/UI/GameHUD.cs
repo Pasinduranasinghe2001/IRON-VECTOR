@@ -459,7 +459,7 @@ namespace IronVector
 
             if (GUILayout.Button("DISCONNECT TO MENU", GUILayout.Height(34)))
             {
-                NetworkManager nm = FindFirstObjectByType<NetworkManager>();
+                NetworkManager nm = FindAnyObjectByType<NetworkManager>();
                 if (nm != null)
                 {
                     if (nm.IsClientStarted) nm.ClientManager.StopConnection();
