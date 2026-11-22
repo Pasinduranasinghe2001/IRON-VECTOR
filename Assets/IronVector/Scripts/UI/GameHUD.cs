@@ -1,12 +1,11 @@
 using System.Collections.Generic;
-using FishNet.Managing;
 using UnityEngine;
 
 namespace IronVector
 {
     /// <summary>
-    /// Full combat HUD: dynamic spread crosshair, sniper scope, hitmarkers, directional damage flash,
-    /// tactical radar, score/timer/Domination flags, killfeed, Tab scoreboard, death/match-end banners and pause menu.
+    /// Full combat HUD with HUD/UI-Off toggle (H key or Settings), FPS counter, Search &amp; Destroy bomb banners,
+    /// FFA leaderboard, Ghost stealth radar, dynamic crosshair/scope, and live Pause Graphics/Loadout switching.
     /// </summary>
     public class GameHUD : MonoBehaviour
     {
@@ -29,6 +28,7 @@ namespace IronVector
 
         readonly List<PlayerIdentity> _sortedPlayers = new List<PlayerIdentity>();
         readonly List<CapturePoint> _sortedPoints = new List<CapturePoint>();
+        float _fpsSmoothed = 60f;
 
         public static void NotifyHit(bool kill, bool headshot)
         {
@@ -46,17 +46,17 @@ namespace IronVector
 
         public static void AddKillFeed(string killer, int killerTeam, string victim, int victimTeam, string source, bool headshot)
         {
-            string kHtml = string.IsNullOrEmpty(killer)
-                ? ""
-                : $"<color=#{Teams.Hex(killerTeam)}>{killer}</color> ";
+            string kHtml = string.IsNullOrEmpty(killer) ? "" : $"<color=#{Teams.Hex(killerTeam)}>{killer}</color> ";
             string vHtml = $"<color=#{Teams.Hex(victimTeam)}>{victim}</color>";
             string hsTag = headshot ? " <color=#FFCC44>[HS]</color>" : "";
-            KillFeed.Add(new KillFeedItem
-            {
-                Text = $"{kHtml}[{source}]{hsTag} {vHtml}",
-                ExpiresAt = Time.time + 6.5f
-            });
+            KillFeed.Add(new KillFeedItem { Text = $"{kHtml}[{source}]{hsTag} {vHtml}", ExpiresAt = Time.time + 6.5f });
             while (KillFeed.Count > 5) KillFeed.RemoveAt(0);
+        }
+
+        void Update()
+        {
+            float fps = 1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime);
+            _fpsSmoothed = Mathf.Lerp(_fpsSmoothed, fps, 0.08f);
         }
 
         void OnGUI()
@@ -68,42 +68,49 @@ namespace IronVector
             EnsureTexturesAndStyles();
             GUI.depth = PlayerLook.PauseMenuOpen ? 10 : -5;
 
-            bool alive = local.Health != null && local.Health.IsAlive;
-            bool inVehicle = local.VehicleUser != null && local.VehicleUser.InVehicle;
-
-            if (alive && !inVehicle)
+            if (LocalProfile.ShowHud)
             {
-                if (local.Weapons != null && local.Weapons.IsSniperScope)
-                    DrawSniperScope();
+                bool alive = local.Health != null && local.Health.IsAlive;
+                bool inVehicle = local.VehicleUser != null && local.VehicleUser.InVehicle;
+
+                if (alive && !inVehicle)
+                {
+                    if (local.Weapons != null && local.Weapons.IsSniperScope) DrawSniperScope();
+                    else DrawCrosshair(local);
+                }
+
+                DrawHitmarker();
+                DrawDamageOverlay(local);
+                DrawTopMatchBar(local);
+                DrawDominationFlags();
+                DrawBombStatusBanner();
+                DrawRadar(local);
+                DrawKillFeed();
+
+                if (LocalProfile.ShowPerformance)
+                    GUI.Label(new Rect(16f, 166f, 140f, 22f), $"FPS: {Mathf.RoundToInt(_fpsSmoothed)}", _boldLeft);
+
+                if (alive)
+                {
+                    DrawBottomLeftVitals(local);
+                    DrawBottomRightWeapon(local, inVehicle);
+                    DrawPrompts(local);
+                }
                 else
-                    DrawCrosshair(local);
+                {
+                    DrawDeathOrSpectateOverlay(local);
+                }
             }
 
-            DrawHitmarker();
-            DrawDamageOverlay(local);
-            DrawTopMatchBar();
-            DrawDominationFlags();
-            DrawRadar(local);
-            DrawKillFeed();
-
-            if (alive)
-            {
-                DrawBottomLeftVitals(local);
-                DrawBottomRightWeapon(local, inVehicle);
-                DrawVehiclePrompt(local);
-            }
-            else
-            {
-                DrawDeathOverlay(local);
-            }
-
-            if (MatchManager.Instance != null && MatchManager.Instance.State.Value == MatchState.Ended)
+            if (MatchManager.Instance != null && MatchManager.Instance.State.Value == MatchState.RoundEnd)
+                DrawRoundEndBanner();
+            else if (MatchManager.Instance != null && MatchManager.Instance.State.Value == MatchState.Ended)
                 DrawMatchEndedOverlay();
             else if (IVInput.RawHeld(IVKey.Scoreboard))
                 DrawScoreboard();
 
             if (PlayerLook.PauseMenuOpen)
-                DrawPauseMenu();
+                DrawPauseMenu(local);
         }
 
         void DrawCrosshair(PlayerIdentity local)
@@ -128,15 +135,15 @@ namespace IronVector
         {
             float cx = Screen.width * 0.5f;
             float cy = Screen.height * 0.5f;
-            float r = Mathf.Min(Screen.width, Screen.height) * 0.38f;
+            float r = Mathf.Min(Screen.width, Screen.height) * 0.39f;
 
-            GUI.color = new Color(0f, 0f, 0f, 0.88f);
+            GUI.color = new Color(0f, 0f, 0f, 0.90f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, cy - r), _whiteTex);
             GUI.DrawTexture(new Rect(0, cy + r, Screen.width, Screen.height - (cy + r)), _whiteTex);
             GUI.DrawTexture(new Rect(0, cy - r, cx - r, r * 2f), _whiteTex);
             GUI.DrawTexture(new Rect(cx + r, cy - r, Screen.width - (cx + r), r * 2f), _whiteTex);
 
-            GUI.color = new Color(0.05f, 0.05f, 0.05f, 0.9f);
+            GUI.color = new Color(0.06f, 0.06f, 0.06f, 0.92f);
             GUI.DrawTexture(new Rect(cx - r, cy - 1f, r * 2f, 2f), _whiteTex);
             GUI.DrawTexture(new Rect(cx - 1f, cy - r, 2f, r * 2f), _whiteTex);
             GUI.color = new Color(1f, 0.25f, 0.25f, 0.95f);
@@ -152,19 +159,18 @@ namespace IronVector
             GUI.color = _hitWasKill ? new Color(1f, 0.22f, 0.22f) : (_hitWasHeadshot ? new Color(1f, 0.85f, 0.2f) : Color.white);
             float d = 8f;
             for (int i = -1; i <= 1; i += 2)
-            {
                 for (int j = -1; j <= 1; j += 2)
                 {
                     GUI.DrawTexture(new Rect(cx + i * d - 2f, cy + j * d - 2f, 4f, 4f), _whiteTex);
                     GUI.DrawTexture(new Rect(cx + i * (d + 4f) - 1.5f, cy + j * (d + 4f) - 1.5f, 3f, 3f), _whiteTex);
                 }
-            }
             GUI.color = Color.white;
         }
 
         void DrawDamageOverlay(PlayerIdentity local)
         {
-            float hp01 = local.Health != null ? local.Health.Health.Value / PlayerHealth.MaxHealth : 1f;
+            float maxHp = local.Health != null ? local.Health.EffectiveMaxHealth : PlayerHealth.BaseMaxHealth;
+            float hp01 = local.Health != null ? local.Health.Health.Value / maxHp : 1f;
             float lowHpAlpha = hp01 < 0.45f ? (0.45f - hp01) * 0.65f : 0f;
             float flashAlpha = Time.time < _damageFlashUntil ? (_damageFlashUntil - Time.time) * 0.35f : 0f;
             float alpha = Mathf.Clamp(lowHpAlpha + flashAlpha, 0f, 0.5f);
@@ -188,37 +194,49 @@ namespace IronVector
                     float angle = Vector3.SignedAngle(fwd.normalized, toSrc.normalized, Vector3.up) * Mathf.Deg2Rad;
                     float cx = Screen.width * 0.5f + Mathf.Sin(angle) * 140f;
                     float cy = Screen.height * 0.5f - Mathf.Cos(angle) * 140f;
-                    GUI.color = new Color(1f, 0.2f, 0.15f, (_damageFlashUntil - Time.time));
+                    GUI.color = new Color(1f, 0.2f, 0.15f, _damageFlashUntil - Time.time);
                     GUI.DrawTexture(new Rect(cx - 12f, cy - 12f, 24f, 24f), _circleTex);
                 }
             }
             GUI.color = Color.white;
         }
 
-        void DrawTopMatchBar()
+        void DrawTopMatchBar(PlayerIdentity local)
         {
             MatchManager mm = MatchManager.Instance;
             int a = mm != null ? mm.AlphaScore.Value : 0;
             int b = mm != null ? mm.BravoScore.Value : 0;
             int secs = mm != null ? mm.TimeRemaining.Value : 600;
-            string modeLabel = mm != null && mm.Mode.Value == GameMode.Domination ? "DOM" : "TDM";
+            GameMode mode = mm != null ? mm.Mode.Value : GameMode.TeamDeathmatch;
+            string modeLabel = mode == GameMode.SearchAndDestroy ? $"S&D R{mm.CurrentRound.Value}" :
+                (mode == GameMode.Domination ? "DOM" : (mode == GameMode.FreeForAll ? "FFA" : "TDM"));
 
             float cx = Screen.width * 0.5f;
-            Rect bg = new Rect(cx - 170f, 12f, 340f, 40f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.82f));
-            DrawRect(new Rect(bg.x, bg.y, 108f, bg.height), Teams.TeamColor(Teams.Alpha) * 0.65f);
-            DrawRect(new Rect(bg.xMax - 108f, bg.y, 108f, bg.height), Teams.TeamColor(Teams.Bravo) * 0.65f);
+            Rect bg = new Rect(cx - 180f, 12f, 360f, 40f);
+            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
 
-            GUI.Label(new Rect(bg.x, bg.y, 108f, bg.height), $"ALPHA  {a}", _boldCenter);
-            GUI.Label(new Rect(cx - 60f, bg.y + 1f, 120f, 22f), $"{secs / 60:00}:{secs % 60:00}", _boldCenter);
-            GUI.Label(new Rect(cx - 60f, bg.y + 19f, 120f, 20f), modeLabel, _boldCenter);
-            GUI.Label(new Rect(bg.xMax - 108f, bg.y, 108f, bg.height), $"{b}  BRAVO", _boldCenter);
+            if (mode == GameMode.FreeForAll)
+            {
+                DrawRect(new Rect(bg.x, bg.y, 114f, bg.height), Teams.TeamColor(Teams.None) * 0.55f);
+                DrawRect(new Rect(bg.xMax - 114f, bg.y, 114f, bg.height), new Color(0.2f, 0.24f, 0.3f, 0.7f));
+                GUI.Label(new Rect(bg.x, bg.y, 114f, bg.height), $"YOU  {local.Kills.Value}", _boldCenter);
+                GUI.Label(new Rect(bg.xMax - 114f, bg.y, 114f, bg.height), $"LEAD  {a}/{mm.ScoreLimit}", _boldCenter);
+            }
+            else
+            {
+                DrawRect(new Rect(bg.x, bg.y, 114f, bg.height), Teams.TeamColor(Teams.Alpha) * 0.65f);
+                DrawRect(new Rect(bg.xMax - 114f, bg.y, 114f, bg.height), Teams.TeamColor(Teams.Bravo) * 0.65f);
+                GUI.Label(new Rect(bg.x, bg.y, 114f, bg.height), $"ALPHA  {a}", _boldCenter);
+                GUI.Label(new Rect(bg.xMax - 114f, bg.y, 114f, bg.height), $"{b}  BRAVO", _boldCenter);
+            }
+
+            GUI.Label(new Rect(cx - 64f, bg.y + 1f, 128f, 22f), $"{secs / 60:00}:{secs % 60:00}", _boldCenter);
+            GUI.Label(new Rect(cx - 64f, bg.y + 19f, 128f, 20f), modeLabel, _boldCenter);
         }
 
         void DrawDominationFlags()
         {
-            if (MatchManager.Instance == null || MatchManager.Instance.Mode.Value != GameMode.Domination) return;
-            if (CapturePoint.All.Count == 0) return;
+            if (MatchManager.Instance == null || MatchManager.Instance.Mode.Value != GameMode.Domination || CapturePoint.All.Count == 0) return;
 
             _sortedPoints.Clear();
             _sortedPoints.AddRange(CapturePoint.All);
@@ -235,6 +253,31 @@ namespace IronVector
                 DrawRect(new Rect(r.x, r.yMax - 5f, r.width * Mathf.Clamp01(cp.Progress.Value), 5f),
                     Teams.TeamColor(cp.CapturingTeam.Value != Teams.None ? cp.CapturingTeam.Value : cp.OwnerTeam.Value));
                 GUI.Label(r, cp.Letter, _boldCenter);
+            }
+        }
+
+        void DrawBombStatusBanner()
+        {
+            MatchManager mm = MatchManager.Instance;
+            if (mm == null || !mm.IsSearchAndDestroy) return;
+
+            if (mm.BombStatus.Value == BombState.Planted)
+            {
+                string site = mm.PlantedSiteIndex.Value == 0 ? "A" : "B";
+                Rect r = new Rect(Screen.width * 0.5f - 170f, 58f, 340f, 28f);
+                DrawRect(r, new Color(0.85f, 0.16f, 0.12f, 0.88f));
+                GUI.Label(r, $"BOMB PLANTED AT SITE {site} — {mm.TimeRemaining.Value}s", _boldCenter);
+            }
+            else if (BombSite.All.Count > 0)
+            {
+                float startX = Screen.width * 0.5f - 54f;
+                foreach (BombSite bs in BombSite.All)
+                {
+                    if (bs == null) continue;
+                    Rect r = new Rect(startX + bs.SiteIndex.Value * 58f, 58f, 48f, 28f);
+                    DrawRect(r, new Color(0.75f, 0.55f, 0.12f, 0.82f));
+                    GUI.Label(r, bs.Letter, _boldCenter);
+                }
             }
         }
 
@@ -255,31 +298,27 @@ namespace IronVector
             float cos = Mathf.Cos(invYaw);
             float sin = Mathf.Sin(invYaw);
 
-            // Capture zones on radar
             foreach (CapturePoint cp in CapturePoint.All)
-            {
-                if (cp == null) continue;
-                DrawRadarDot(local.transform.position, cp.transform.position, center, size * 0.44f, range, cos, sin, Teams.TeamColor(cp.OwnerTeam.Value), 7f);
-            }
+                if (cp != null) DrawRadarDot(local.transform.position, cp.transform.position, center, size * 0.44f, range, cos, sin, Teams.TeamColor(cp.OwnerTeam.Value), 7f);
 
-            // Vehicles on radar
+            foreach (BombSite bs in BombSite.All)
+                if (bs != null) DrawRadarDot(local.transform.position, bs.transform.position, center, size * 0.44f, range, cos, sin, bs.IsPlantedHere.Value ? Color.red : Color.yellow, 7f);
+
             foreach (VehicleController v in VehicleController.All)
-            {
-                if (v == null || (v.Health != null && !v.Health.IsAlive)) continue;
-                DrawRadarDot(local.transform.position, v.transform.position, center, size * 0.44f, range, cos, sin, new Color(1f, 0.75f, 0.25f), 6f);
-            }
+                if (v != null && (v.Health == null || v.Health.IsAlive))
+                    DrawRadarDot(local.transform.position, v.transform.position, center, size * 0.44f, range, cos, sin, new Color(1f, 0.75f, 0.25f), 6f);
 
-            // Teammates + nearby firing enemies
+            bool ffa = MatchManager.Instance != null && MatchManager.Instance.IsFreeForAll;
             foreach (PlayerIdentity p in PlayerIdentity.All)
             {
                 if (p == null || p == local || p.Health == null || !p.Health.IsAlive) continue;
-                bool ally = p.Team.Value == local.Team.Value;
-                bool recentlyFired = p.Weapons != null && Time.time - p.Weapons.LastShotTime < 1.8f;
+                bool ally = !ffa && p.Team.Value != Teams.None && p.Team.Value == local.Team.Value;
+                bool isGhost = p.Strategy.Value == (int)TacticalStrategy.Ghost;
+                bool recentlyFired = !isGhost && p.Weapons != null && Time.time - p.Weapons.LastShotTime < 1.8f;
                 if (!ally && !recentlyFired) continue;
-                DrawRadarDot(local.transform.position, p.transform.position, center, size * 0.44f, range, cos, sin, Teams.TeamColor(p.Team.Value), 6f);
+                DrawRadarDot(local.transform.position, p.transform.position, center, size * 0.44f, range, cos, sin, ally ? Teams.TeamColor(p.Team.Value) : new Color(1f, 0.28f, 0.22f), 6f);
             }
 
-            // Local player dot at center
             GUI.color = Color.white;
             GUI.DrawTexture(new Rect(center.x - 4f, center.y - 4f, 8f, 8f), _circleTex);
         }
@@ -313,17 +352,19 @@ namespace IronVector
 
         void DrawBottomLeftVitals(PlayerIdentity local)
         {
-            float hp = local.Health != null ? local.Health.Health.Value : 100f;
-            float frac = Mathf.Clamp01(hp / PlayerHealth.MaxHealth);
+            float maxHp = local.Health != null ? local.Health.EffectiveMaxHealth : PlayerHealth.BaseMaxHealth;
+            float hp = local.Health != null ? local.Health.Health.Value : maxHp;
+            float frac = Mathf.Clamp01(hp / maxHp);
             Color teamCol = Teams.TeamColor(local.Team.Value);
             string stance = local.Motor != null && local.Motor.IsSliding ? "SLIDE" : (local.Motor != null && local.Motor.IsCrouching ? "CROUCH" : "STAND");
+            string perk = StrategyInfo.ShortNames[Mathf.Clamp(local.Strategy.Value, 0, StrategyInfo.ShortNames.Length - 1)];
 
-            Rect bg = new Rect(16f, Screen.height - 76f, 250f, 60f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.82f));
-            GUI.Label(new Rect(bg.x + 12f, bg.y + 4f, 150f, 22f), $"{Teams.Name(local.Team.Value)} · {stance}", _boldLeft);
-            GUI.Label(new Rect(bg.xMax - 80f, bg.y + 4f, 68f, 22f), $"{Mathf.CeilToInt(hp)} HP", _boldRight);
+            Rect bg = new Rect(16f, Screen.height - 84f, 275f, 68f);
+            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
+            GUI.Label(new Rect(bg.x + 12f, bg.y + 4f, 185f, 20f), $"{Teams.Name(local.Team.Value)} · {stance} · {perk}", _boldLeft);
+            GUI.Label(new Rect(bg.xMax - 78f, bg.y + 4f, 66f, 20f), $"{Mathf.CeilToInt(hp)} HP", _boldRight);
 
-            Rect barBg = new Rect(bg.x + 12f, bg.y + 32f, bg.width - 24f, 14f);
+            Rect barBg = new Rect(bg.x + 12f, bg.y + 34f, bg.width - 24f, 14f);
             DrawRect(barBg, new Color(0.15f, 0.17f, 0.20f, 0.9f));
             Color barCol = frac > 0.35f ? teamCol : new Color(0.95f, 0.22f, 0.20f);
             DrawRect(new Rect(barBg.x, barBg.y, barBg.width * frac, barBg.height), barCol);
@@ -332,7 +373,7 @@ namespace IronVector
         void DrawBottomRightWeapon(PlayerIdentity local, bool inVehicle)
         {
             Rect bg = new Rect(Screen.width - 286f, Screen.height - 86f, 270f, 70f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.82f));
+            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
 
             if (inVehicle && local.VehicleUser.Vehicle != null)
             {
@@ -361,8 +402,17 @@ namespace IronVector
             }
         }
 
-        void DrawVehiclePrompt(PlayerIdentity local)
+        void DrawPrompts(PlayerIdentity local)
         {
+            if (local.BombUser != null && !string.IsNullOrEmpty(local.BombUser.PromptLabel))
+            {
+                Rect r = new Rect(Screen.width * 0.5f - 190f, Screen.height - 172f, 380f, 34f);
+                DrawRect(r, new Color(0.08f, 0.09f, 0.12f, 0.86f));
+                if (local.BombUser.HoldProgress01 > 0.01f)
+                    DrawRect(new Rect(r.x, r.yMax - 6f, r.width * local.BombUser.HoldProgress01, 6f), new Color(0.95f, 0.7f, 0.2f));
+                GUI.Label(r, local.BombUser.PromptLabel, _boldCenter);
+            }
+
             if (local.VehicleUser == null) return;
             string msg = null;
             if (local.VehicleUser.InVehicle)
@@ -370,32 +420,63 @@ namespace IronVector
             else if (local.VehicleUser.NearbyVehicle != null)
                 msg = $"[F] Drive {local.VehicleUser.NearbyVehicle.vehicleName}";
 
-            if (string.IsNullOrEmpty(msg)) return;
-            Rect r = new Rect(Screen.width * 0.5f - 220f, Screen.height - 132f, 440f, 30f);
-            DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.78f));
-            GUI.Label(r, msg, _boldCenter);
+            if (!string.IsNullOrEmpty(msg))
+            {
+                Rect r = new Rect(Screen.width * 0.5f - 220f, Screen.height - 132f, 440f, 30f);
+                DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.78f));
+                GUI.Label(r, msg, _boldCenter);
+            }
         }
 
-        void DrawDeathOverlay(PlayerIdentity local)
+        void DrawDeathOrSpectateOverlay(PlayerIdentity local)
         {
+            bool snd = MatchManager.Instance != null && MatchManager.Instance.IsSearchAndDestroy;
+            if (snd)
+            {
+                string spec = local.Look != null && !string.IsNullOrEmpty(local.Look.SpectatingName)
+                    ? $"SPECTATING: {local.Look.SpectatingName}   (Space / LMB Next Teammate)"
+                    : "ELIMINATED — WAITING FOR NEXT ROUND";
+                Rect r = new Rect(Screen.width * 0.5f - 260f, Screen.height - 90f, 520f, 42f);
+                DrawRect(r, new Color(0.06f, 0.04f, 0.05f, 0.85f));
+                GUI.Label(r, spec, _boldCenter);
+                return;
+            }
+
             float left = Mathf.Max(0f, local.Health.LocalRespawnAt - Time.time);
-            Rect r = new Rect(Screen.width * 0.5f - 220f, Screen.height * 0.5f - 55f, 440f, 110f);
-            DrawRect(r, new Color(0.06f, 0.04f, 0.05f, 0.85f));
+            Rect box = new Rect(Screen.width * 0.5f - 220f, Screen.height * 0.5f - 55f, 440f, 110f);
+            DrawRect(box, new Color(0.06f, 0.04f, 0.05f, 0.85f));
             string killer = string.IsNullOrEmpty(local.Health.LastKillerName) ? "KIA" : $"ELIMINATED BY {local.Health.LastKillerName}";
-            GUI.Label(new Rect(r.x, r.y + 18f, r.width, 32f), killer, _bigBanner);
-            GUI.Label(new Rect(r.x, r.y + 58f, r.width, 28f), $"Deploying in {left:0.0}s...", _boldCenter);
+            GUI.Label(new Rect(box.x, box.y + 18f, box.width, 32f), killer, _bigBanner);
+            GUI.Label(new Rect(box.x, box.y + 58f, box.width, 28f), $"Deploying in {left:0.0}s...", _boldCenter);
+        }
+
+        void DrawRoundEndBanner()
+        {
+            MatchManager mm = MatchManager.Instance;
+            if (mm == null) return;
+            Rect r = new Rect(Screen.width * 0.5f - 260f, 120f, 520f, 82f);
+            DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.90f));
+            GUI.Label(new Rect(r.x, r.y + 12f, r.width, 34f), mm.RoundBanner.Value, _bigBanner);
+            GUI.Label(new Rect(r.x, r.y + 46f, r.width, 24f), $"ALPHA {mm.AlphaScore.Value} — {mm.BravoScore.Value} BRAVO", _boldCenter);
         }
 
         void DrawMatchEndedOverlay()
         {
             MatchManager mm = MatchManager.Instance;
-            int wTeam = mm != null ? mm.WinnerTeam.Value : Teams.None;
-            string banner = wTeam == Teams.None ? "MATCH DRAW" : $"{Teams.Name(wTeam)} VICTORY";
-            Rect r = new Rect(Screen.width * 0.5f - 260f, 120f, 520f, 120f);
-            DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.90f));
-            GUI.Label(new Rect(r.x, r.y + 20f, r.width, 40f), banner, _bigBanner);
+            string banner;
+            if (mm != null && mm.IsFreeForAll)
+                banner = $"{mm.WinnerName.Value} WINS FREE FOR ALL";
+            else
+            {
+                int wTeam = mm != null ? mm.WinnerTeam.Value : Teams.None;
+                banner = wTeam == Teams.None ? "MATCH DRAW" : $"{Teams.Name(wTeam)} VICTORY";
+            }
+
+            Rect r = new Rect(Screen.width * 0.5f - 270f, 120f, 540f, 115f);
+            DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.92f));
+            GUI.Label(new Rect(r.x, r.y + 18f, r.width, 40f), banner, _bigBanner);
             if (mm != null)
-                GUI.Label(new Rect(r.x, r.y + 66f, r.width, 28f), $"ALPHA {mm.AlphaScore.Value}  —  {mm.BravoScore.Value} BRAVO   (Next round starting soon)", _boldCenter);
+                GUI.Label(new Rect(r.x, r.y + 66f, r.width, 28f), mm.IsFreeForAll ? "Next match starting soon..." : $"ALPHA {mm.AlphaScore.Value}  —  {mm.BravoScore.Value} BRAVO", _boldCenter);
         }
 
         void DrawScoreboard()
@@ -408,16 +489,16 @@ namespace IronVector
                 return tc != 0 ? tc : b.Score.Value.CompareTo(a.Score.Value);
             });
 
-            float w = 540f;
+            float w = 560f;
             float h = 76f + Mathf.Max(1, _sortedPlayers.Count) * 26f;
             Rect r = new Rect(Screen.width * 0.5f - w * 0.5f, 110f, w, h);
             DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.92f));
 
             GUI.Label(new Rect(r.x + 14f, r.y + 10f, 200f, 24f), "CALLSIGN", _boldLeft);
-            GUI.Label(new Rect(r.x + 220f, r.y + 10f, 80f, 24f), "TEAM", _boldCenter);
-            GUI.Label(new Rect(r.x + 310f, r.y + 10f, 65f, 24f), "KILLS", _boldCenter);
-            GUI.Label(new Rect(r.x + 380f, r.y + 10f, 70f, 24f), "DEATHS", _boldCenter);
-            GUI.Label(new Rect(r.x + 455f, r.y + 10f, 70f, 24f), "SCORE", _boldCenter);
+            GUI.Label(new Rect(r.x + 220f, r.y + 10f, 90f, 24f), "TEAM", _boldCenter);
+            GUI.Label(new Rect(r.x + 320f, r.y + 10f, 65f, 24f), "KILLS", _boldCenter);
+            GUI.Label(new Rect(r.x + 390f, r.y + 10f, 70f, 24f), "DEATHS", _boldCenter);
+            GUI.Label(new Rect(r.x + 465f, r.y + 10f, 75f, 24f), "SCORE", _boldCenter);
             DrawRect(new Rect(r.x + 10f, r.y + 38f, r.width - 20f, 1f), new Color(1f, 1f, 1f, 0.25f));
 
             for (int i = 0; i < _sortedPlayers.Count; i++)
@@ -428,45 +509,66 @@ namespace IronVector
                 Color tc = Teams.TeamColor(p.Team.Value);
                 DrawRect(new Rect(r.x + 10f, rowY, r.width - 20f, 24f), new Color(tc.r, tc.g, tc.b, p == PlayerIdentity.Local ? 0.28f : 0.12f));
                 GUI.Label(new Rect(r.x + 14f, rowY, 200f, 24f), p.PlayerName.Value, _boldLeft);
-                GUI.Label(new Rect(r.x + 220f, rowY, 80f, 24f), Teams.Name(p.Team.Value), _boldCenter);
-                GUI.Label(new Rect(r.x + 310f, rowY, 65f, 24f), p.Kills.Value.ToString(), _boldCenter);
-                GUI.Label(new Rect(r.x + 380f, rowY, 70f, 24f), p.Deaths.Value.ToString(), _boldCenter);
-                GUI.Label(new Rect(r.x + 455f, rowY, 70f, 24f), p.Score.Value.ToString(), _boldCenter);
+                GUI.Label(new Rect(r.x + 220f, rowY, 90f, 24f), Teams.Name(p.Team.Value), _boldCenter);
+                GUI.Label(new Rect(r.x + 320f, rowY, 65f, 24f), p.Kills.Value.ToString(), _boldCenter);
+                GUI.Label(new Rect(r.x + 390f, rowY, 70f, 24f), p.Deaths.Value.ToString(), _boldCenter);
+                GUI.Label(new Rect(r.x + 465f, rowY, 75f, 24f), p.Score.Value.ToString(), _boldCenter);
             }
         }
 
-        void DrawPauseMenu()
+        void DrawPauseMenu(PlayerIdentity local)
         {
-            DrawRect(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
-            Rect r = new Rect(Screen.width * 0.5f - 175f, Screen.height * 0.5f - 130f, 350f, 260f);
+            DrawRect(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.58f));
+            Rect r = new Rect(Screen.width * 0.5f - 250f, Screen.height * 0.5f - 235f, 500f, 470f);
             DrawRect(r, new Color(0.08f, 0.10f, 0.13f, 0.96f));
 
             GUILayout.BeginArea(new Rect(r.x + 22f, r.y + 18f, r.width - 44f, r.height - 36f));
-            GUILayout.Label("PAUSED", _bigBanner);
-            GUILayout.Space(12);
+            GUILayout.Label("PAUSED — SETTINGS & LOADOUT", _bigBanner);
+            GUILayout.Space(8);
 
-            GUILayout.Label($"Mouse Sensitivity: {LocalProfile.Sensitivity:0.0}", _boldLeft);
+            GUILayout.Label("Graphics Preset", _boldLeft);
+            LocalProfile.GraphicsQuality = GUILayout.Toolbar(LocalProfile.GraphicsQuality, GraphicsSettingsManager.PresetNames, GUILayout.Height(26));
+            GUILayout.Space(6);
+
+            GUILayout.BeginHorizontal();
+            LocalProfile.ShowHud = GUILayout.Toggle(LocalProfile.ShowHud, " Show HUD (Key: H)");
+            LocalProfile.VSync = GUILayout.Toggle(LocalProfile.VSync, " VSync");
+            LocalProfile.ShowPerformance = GUILayout.Toggle(LocalProfile.ShowPerformance, " FPS");
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8);
+
+            GUILayout.Label($"Sensitivity: {LocalProfile.Sensitivity:0.0}   |   FOV: {LocalProfile.FieldOfView:0}", _boldLeft);
+            GUILayout.BeginHorizontal();
             LocalProfile.Sensitivity = GUILayout.HorizontalSlider(LocalProfile.Sensitivity, 0.4f, 8f);
-            GUILayout.Space(8);
+            GUILayout.Space(10);
+            LocalProfile.FieldOfView = GUILayout.HorizontalSlider(LocalProfile.FieldOfView, 65f, 110f);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(10);
 
-            GUILayout.Label($"Field of View: {LocalProfile.FieldOfView:0}", _boldLeft);
-            LocalProfile.FieldOfView = GUILayout.HorizontalSlider(LocalProfile.FieldOfView, 65f, 105f);
-            GUILayout.FlexibleSpace();
+            GUILayout.Label("Change Loadout & Strategy (Applies next Spawn)", _boldLeft);
+            int pIdx = GUILayout.SelectionGrid(Mathf.Clamp(LocalProfile.PrimaryWeapon, 0, WeaponDatabase.PrimaryLabels.Length - 1), WeaponDatabase.PrimaryLabels, 2);
+            if (pIdx != LocalProfile.PrimaryWeapon) LocalProfile.PrimaryWeapon = pIdx;
 
-            if (GUILayout.Button("RESUME", GUILayout.Height(36)))
-                PlayerLook.Resume();
-            GUILayout.Space(8);
+            int sIdx = GUILayout.SelectionGrid(Mathf.Clamp(LocalProfile.SecondaryWeapon, 0, WeaponDatabase.SecondaryLabels.Length - 1), WeaponDatabase.SecondaryLabels, 2);
+            if (sIdx != LocalProfile.SecondaryWeapon) LocalProfile.SecondaryWeapon = sIdx;
 
-            if (GUILayout.Button("DISCONNECT TO MENU", GUILayout.Height(34)))
+            int stratIdx = GUILayout.SelectionGrid(Mathf.Clamp(LocalProfile.Strategy, 0, StrategyInfo.ShortNames.Length - 1), StrategyInfo.ShortNames, 4);
+            if (stratIdx != LocalProfile.Strategy)
             {
-                NetworkManager nm = FindAnyObjectByType<NetworkManager>();
-                if (nm != null)
-                {
-                    if (nm.IsClientStarted) nm.ClientManager.StopConnection();
-                    if (nm.IsServerStarted) nm.ServerManager.StopConnection(true);
-                }
-                PlayerLook.ResetInputState();
+                LocalProfile.Strategy = stratIdx;
+                local?.ClientApplyStrategy(stratIdx);
             }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("RESUME", GUILayout.Height(36))) PlayerLook.Resume();
+            GUILayout.Space(10);
+            if (GUILayout.Button("DISCONNECT TO MENU", GUILayout.Height(36)))
+            {
+                if (MainMenuUI.Instance != null) MainMenuUI.Instance.DisconnectToMenu();
+                else PlayerLook.ResetInputState();
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.EndArea();
         }
@@ -490,20 +592,17 @@ namespace IronVector
             float center = (s - 1) * 0.5f;
             float rSq = center * center;
             for (int y = 0; y < s; y++)
-            {
                 for (int x = 0; x < s; x++)
                 {
-                    float dx = x - center;
-                    float dy = y - center;
+                    float dx = x - center, dy = y - center;
                     _circleTex.SetPixel(x, y, dx * dx + dy * dy <= rSq ? Color.white : Color.clear);
                 }
-            }
             _circleTex.Apply();
 
             _boldCenter = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             _boldCenter.normal.textColor = Color.white;
 
-            _boldLeft = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+            _boldLeft = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
             _boldLeft.normal.textColor = Color.white;
 
             _boldRight = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
@@ -512,7 +611,7 @@ namespace IronVector
             _richLeft = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, richText = true, alignment = TextAnchor.MiddleLeft };
             _richLeft.normal.textColor = Color.white;
 
-            _bigBanner = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            _bigBanner = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             _bigBanner.normal.textColor = Color.white;
         }
     }

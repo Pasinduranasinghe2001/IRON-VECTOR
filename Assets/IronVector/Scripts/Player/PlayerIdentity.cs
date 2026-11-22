@@ -7,8 +7,8 @@ using UnityEngine.Rendering;
 namespace IronVector
 {
     /// <summary>
-    /// The "hub" component of a player: name, team, stats and cached references to every
-    /// other player component. Keeps a static list of all players for HUD/scoreboard/spawns.
+    /// Hub component on Player: name, team, kills/deaths/score, active TacticalStrategy (4 COD4 perks),
+    /// and cached references to every sibling player system.
     /// </summary>
     public class PlayerIdentity : NetworkBehaviour
     {
@@ -17,11 +17,11 @@ namespace IronVector
 
         public readonly SyncVar<string> PlayerName = new SyncVar<string>("Operator");
         public readonly SyncVar<int> Team = new SyncVar<int>(Teams.None);
+        public readonly SyncVar<int> Strategy = new SyncVar<int>(0);
         public readonly SyncVar<int> Kills = new SyncVar<int>(0);
         public readonly SyncVar<int> Deaths = new SyncVar<int>(0);
         public readonly SyncVar<int> Score = new SyncVar<int>(0);
 
-        /// <summary>Server-only: team chosen by NetworkGameServer before spawning.</summary>
         [System.NonSerialized] public int PendingTeam = Teams.Alpha;
 
         public PlayerHealth Health { get; private set; }
@@ -30,6 +30,7 @@ namespace IronVector
         public WeaponController Weapons { get; private set; }
         public GrenadeThrower Grenades { get; private set; }
         public PlayerVehicleInteraction VehicleUser { get; private set; }
+        public PlayerBombInteraction BombUser { get; private set; }
 
         CharacterController _cc;
         Renderer[] _bodyRenderers;
@@ -43,9 +44,9 @@ namespace IronVector
             Weapons = GetComponent<WeaponController>();
             Grenades = GetComponent<GrenadeThrower>();
             VehicleUser = GetComponent<PlayerVehicleInteraction>();
+            BombUser = GetComponent<PlayerBombInteraction>();
             _cc = GetComponent<CharacterController>();
 
-            // Weapon models are created at runtime, so at Awake these are only body parts.
             _bodyRenderers = GetComponentsInChildren<Renderer>(true);
             Hitbox[] hitboxes = GetComponentsInChildren<Hitbox>(true);
             var cols = new List<Collider>();
@@ -84,8 +85,7 @@ namespace IronVector
             if (IsOwner)
             {
                 Local = this;
-                ServerSetName(LocalProfile.PlayerName);
-                // Don't render our own body to our camera, but keep its shadow.
+                ServerSetProfile(LocalProfile.PlayerName, LocalProfile.Strategy);
                 foreach (Renderer r in _bodyRenderers)
                     if (r != null) r.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
             }
@@ -93,12 +93,20 @@ namespace IronVector
             RefreshState();
         }
 
-        [ServerRpc]
-        void ServerSetName(string requested)
+        public void ClientApplyStrategy(int strategy)
         {
-            string n = string.IsNullOrWhiteSpace(requested) ? "Operator" : requested.Trim();
+            if (IsOwner) ServerSetProfile(LocalProfile.PlayerName, strategy);
+        }
+
+        [ServerRpc]
+        void ServerSetProfile(string requestedName, int strategy)
+        {
+            string n = string.IsNullOrWhiteSpace(requestedName) ? "Operator" : requestedName.Trim();
             if (n.Length > 16) n = n.Substring(0, 16);
             PlayerName.Value = n;
+            Strategy.Value = Mathf.Clamp(strategy, 0, 3);
+            if (Health != null && Health.IsAlive)
+                Health.ServerSyncMaxHealth();
         }
 
         void OnTeamChanged(int prev, int next, bool asServer) => ApplyTeamColor();
@@ -111,7 +119,6 @@ namespace IronVector
                 if (r != null && r.gameObject.name == "Body") r.material.color = c;
         }
 
-        /// <summary>Show/hide body, colliders and weapons based on alive + in-vehicle state.</summary>
         public void RefreshState()
         {
             bool alive = Health == null || Health.IsAlive;

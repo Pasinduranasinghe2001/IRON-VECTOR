@@ -5,29 +5,31 @@ using UnityEngine;
 
 namespace IronVector
 {
-    /// <summary>Server-authoritative health, death, COD-style regen and respawn.</summary>
+    /// <summary>Server-authoritative health, Juggernaut armor scaling, COD regen, FFA/S&amp;D rules and respawn.</summary>
     public class PlayerHealth : NetworkBehaviour, IDamageable
     {
-        public const float MaxHealth = 100f;
+        public const float BaseMaxHealth = 100f;
 
-        public float respawnDelay = 4f;
-        public float regenDelay = 4.5f;
-        public float regenPerSecond = 30f;
+        public float respawnDelay = 3.5f;
+        public float regenDelay = 4.2f;
+        public float regenPerSecond = 32f;
         public float killHeight = -25f;
 
-        public readonly SyncVar<float> Health = new SyncVar<float>(MaxHealth);
+        public readonly SyncVar<float> Health = new SyncVar<float>(BaseMaxHealth);
         public readonly SyncVar<bool> Dead = new SyncVar<bool>(false);
 
         PlayerIdentity _id;
         float _lastDamageTime = -100f;
         float _respawnAt;
 
-        /// <summary>Owner-side: when we will respawn (for the death screen).</summary>
         public float LocalRespawnAt { get; private set; }
         public string LastKillerName { get; private set; } = "";
 
         public bool IsAlive => !Dead.Value;
         public int DamageTeam => _id != null ? _id.Team.Value : Teams.None;
+
+        public float EffectiveMaxHealth =>
+            (_id != null && _id.Strategy.Value == (int)TacticalStrategy.Juggernaut) ? 125f : BaseMaxHealth;
 
         void Awake()
         {
@@ -41,7 +43,15 @@ namespace IronVector
             if (_id != null) _id.RefreshState();
         }
 
-        // ---------------- Server ----------------
+        public void ServerSyncMaxHealth()
+        {
+            if (!IsServerInitialized || Dead.Value) return;
+            float maxHp = EffectiveMaxHealth;
+            if (Health.Value >= BaseMaxHealth && Health.Value < maxHp)
+                Health.Value = maxHp;
+            else if (Health.Value > maxHp)
+                Health.Value = maxHp;
+        }
 
         public void ServerTakeDamage(DamageInfo info)
         {
@@ -50,8 +60,10 @@ namespace IronVector
             MatchManager match = MatchManager.Instance;
             if (match != null && !match.DamageAllowed) return;
 
-            // Friendly fire off (self-damage allowed, e.g. own grenade).
-            if (info.Attacker != null && info.Attacker != _id && info.Attacker.Team.Value == _id.Team.Value) return;
+            bool isFfa = match != null && match.IsFreeForAll;
+            if (!isFfa && info.Attacker != null && info.Attacker != _id &&
+                info.Attacker.Team.Value != Teams.None && info.Attacker.Team.Value == _id.Team.Value)
+                return;
 
             float hp = Mathf.Max(0f, Health.Value - info.Amount);
             Health.Value = hp;
@@ -104,20 +116,23 @@ namespace IronVector
                 return;
             }
 
-            if (Health.Value < MaxHealth && Time.time - _lastDamageTime > regenDelay)
-                Health.Value = Mathf.Min(MaxHealth, Health.Value + regenPerSecond * Time.deltaTime);
+            float maxHp = EffectiveMaxHealth;
+            float delay = (_id != null && _id.Strategy.Value == (int)TacticalStrategy.Juggernaut) ? regenDelay * 0.75f : regenDelay;
+            if (Health.Value < maxHp && Time.time - _lastDamageTime > delay)
+                Health.Value = Mathf.Min(maxHp, Health.Value + regenPerSecond * Time.deltaTime);
         }
 
         public void ServerRespawn()
         {
             if (!IsServerInitialized) return;
+            bool isFfa = MatchManager.Instance != null && MatchManager.Instance.IsFreeForAll;
             Pose spawn = SpawnManager.Instance != null
-                ? SpawnManager.Instance.GetSpawnPoint(_id.Team.Value)
+                ? SpawnManager.Instance.GetSpawnPoint(_id.Team.Value, isFfa)
                 : new Pose(Vector3.up * 2f, Quaternion.identity);
 
             _id.VehicleUser.ServerForceExit();
             transform.SetPositionAndRotation(spawn.position, spawn.rotation);
-            Health.Value = MaxHealth;
+            Health.Value = EffectiveMaxHealth;
             Dead.Value = false;
             _lastDamageTime = -100f;
 
@@ -126,19 +141,15 @@ namespace IronVector
             TargetOnRespawn(Owner, spawn.position, spawn.rotation);
         }
 
-        // ---------------- Owner-targeted RPCs ----------------
-
         [TargetRpc]
         void TargetOnDamaged(NetworkConnection conn, Vector3 from)
         {
             GameHUD.NotifyDamaged(from);
+            if (_id != null && _id.Look != null) _id.Look.AddScreenShake(0.45f);
         }
 
         [TargetRpc]
-        public void TargetHitConfirm(NetworkConnection conn, bool kill, bool headshot)
-        {
-            GameHUD.NotifyHit(kill, headshot);
-        }
+        public void TargetHitConfirm(NetworkConnection conn, bool kill, bool headshot) => GameHUD.NotifyHit(kill, headshot);
 
         [TargetRpc]
         void TargetOnKilled(NetworkConnection conn, string killerName)

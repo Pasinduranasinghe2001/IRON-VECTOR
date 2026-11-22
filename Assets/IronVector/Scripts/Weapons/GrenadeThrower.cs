@@ -3,13 +3,13 @@ using UnityEngine;
 
 namespace IronVector
 {
-    /// <summary>Frag grenade throwing (G key). Server runs damage fuse; clients spawn lightweight visuals.</summary>
+    /// <summary>Frag grenade throwing (G key). Scales with Danger Close (Juggernaut) strategy.</summary>
     public class GrenadeThrower : NetworkBehaviour
     {
         public int maxGrenades = 2;
-        public float throwSpeed = 19f;
+        public float throwSpeed = 19.5f;
         public float upwardBoost = 4.2f;
-        public float fuseSeconds = 2.2f;
+        public float fuseSeconds = 2.1f;
         public float explosionRadius = 8.5f;
         public float explosionDamage = 130f;
         public float throwCooldown = 0.8f;
@@ -21,10 +21,7 @@ namespace IronVector
 
         public int Remaining => _localRemaining;
 
-        void Awake()
-        {
-            _id = GetComponent<PlayerIdentity>();
-        }
+        void Awake() => _id = GetComponent<PlayerIdentity>();
 
         public override void OnStartServer()
         {
@@ -69,7 +66,10 @@ namespace IronVector
             _serverRemaining--;
             Vector3 clampedVel = Vector3.ClampMagnitude(velocity, 30f);
 
-            // Server simulates invisible physics body so Host doesn't render two grenades.
+            bool dangerClose = _id.Strategy.Value == (int)TacticalStrategy.Juggernaut;
+            float rad = explosionRadius * (dangerClose ? 1.25f : 1.0f);
+            float dmg = explosionDamage * (dangerClose ? 1.25f : 1.0f);
+
             var go = new GameObject("FragGrenade_Server");
             go.transform.position = origin;
             var col = go.AddComponent<SphereCollider>();
@@ -82,7 +82,7 @@ namespace IronVector
                 if (own != null && own.enabled) Physics.IgnoreCollision(col, own, true);
 
             var sim = go.AddComponent<FragGrenadeServer>();
-            sim.Init(_id, fuseSeconds, explosionRadius, explosionDamage, pos => ObserversExplode(pos, explosionRadius));
+            sim.Init(_id, fuseSeconds, rad, dmg, pos => ObserversExplode(pos, rad));
 
             ObserversSpawnVisual(origin, clampedVel);
         }
@@ -112,6 +112,12 @@ namespace IronVector
         void ObserversExplode(Vector3 position, float radius)
         {
             FxUtil.Explosion(position, radius);
+            if (PlayerIdentity.Local != null && PlayerIdentity.Local.Look != null)
+            {
+                float d = Vector3.Distance(PlayerIdentity.Local.transform.position, position);
+                if (d < radius * 2.5f)
+                    PlayerIdentity.Local.Look.AddScreenShake((1f - d / (radius * 2.5f)) * 1.4f);
+            }
         }
     }
 

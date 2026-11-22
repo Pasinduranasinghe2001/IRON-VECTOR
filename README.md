@@ -1,114 +1,62 @@
 # IRON VECTOR
 
-**IRON VECTOR** is a combined-arms multiplayer tactical first-person shooter built with **Unity 6 (6000.3 LTS)**, **URP**, and **FishNet 4.7.4**.
-
-Players fight across a 3-lane combat compound featuring infantry CQB, sniper overwatch lanes, frag grenades, objective capture zones, and drivable **Recon Buggies**.
+**IRON VECTOR** is a combined-arms multiplayer tactical first-person shooter inspired by **Call of Duty 4: Modern Warfare**, built with **Unity 6 (`6000.6.10f1`)**, **URP**, and **FishNet 4.7.4R**.
 
 ---
 
-## Tech Stack
+## Key Features
 
-- **Engine**: Unity 6.3 LTS (`6000.3.0f1`)
-- **Render Pipeline**: Universal Render Pipeline (URP 17.3.0) + ACES Post-Processing
-- **Networking**: [FishNet 4.7.4](https://github.com/FirstGearGames/FishNet) (Tugboat UDP transport, server-authoritative combat & match rules)
-- **Input**: Unified wrapper (`IVInput`) supporting both Unity Input System (`1.11.2`) and Legacy Input Manager
-
----
-
-## Current Vertical Slice Features
-
-- **Multiplayer Lobby & Modes**
-  - Host Match, Join by IP/Port, or launch a **Dedicated Server** (`-server -port 7770 -mode dom|tdm`)
-  - **Team Deathmatch** (30-kill target, 10-minute rounds, automatic round restart)
-  - **Domination** (3 capture zones `A`, `B`, `C`, contested capture progress, 200-point limit)
-- **Player Movement & Gunplay**
-  - Walk, sprint, crouch (with synced remote capsule/hitbox shrink), tactical slide (`Shift + C/Ctrl`), jump
-  - Recoil & recovery, dynamic hip/ADS spread, sniper scope zoom, procedural 3D weapon viewmodels, spatial procedural gunfire/explosion/hit SFX
-  - **5 Weapons** (editable as `WeaponData` ScriptableObjects):
-    - **M4A1 Carbine** (Assault Rifle)
-    - **MP5K Tactical** (SMG)
-    - **M24 Sniper** (Bolt-Action Rifle, 2.2x headshot multiplier)
-    - **M870 Breacher** (8-pellet Pump Shotgun)
-    - **P226 Sidearm** (Secondary Pistol)
-  - **Frag Grenades** (`G`, 2 per life, server-simulated explosion with line-of-sight wall blocking)
-- **Vehicles**
-  - Drivable **Recon Buggy** with raycast suspension, lateral tire grip, handbrake, chasing camera, roadkill impacts, armor health, smoke damage state, explosion + automatic respawn
-  - Seamless FishNet ownership transfer on entry/exit and ownership cleanup if a driver disconnects
-- **Combat HUD**
-  - Dynamic crosshair / sniper reticle, directional damage indicator, colored hitmarkers, tactical radar, killfeed, `Tab` scoreboard, death countdown & pause menu (`Esc`)
+- **Call of Duty 4: Modern Warfare–Inspired Arsenal (9 Weapons)**
+  - **Primaries**: **M4A1 Carbine**, **AK-47**, **MP5**, **P90** (50-rd), **M40A3** (Bolt Sniper), **W1200** (8-pellet Pump Shotgun), **M249 SAW** (100-rd LMG)
+  - **Sidearms**: **M9** (9mm) & **Desert Eagle .50**
+  - Crisp ADS zoom & sway, sprint-tilt, brass shell ejections, micro camera recoil/shake, reload cancel, and procedural weapon/bullet/explosion SFX
+- **4 Tactical Strategies (Loadout Perks)**
+  1. **Assault · Stopping Power** — `+15%` bullet damage
+  2. **Recon · Ghost (UAV Jammer)** — Hidden from enemy radar sweeps & tighter moving hipfire
+  3. **Rusher · Speed & Sleight of Hand** — `+18%` sprint/move speed & `-35%` reload time
+  4. **Support · Juggernaut & Danger Close** — `125` Max HP armor, faster regen & `+25%` frag blast radius/damage
+- **4 Game Modes**
+  - **Team Deathmatch (TDM)** — 30-kill race
+  - **Search & Destroy (S&D)** — Single-life rounds, Alpha plants (`Hold F`) at Site **A/B**, Bravo defuses before 35s detonation, teammate spectating, first to 4 rounds
+  - **Domination (DOM)** — Capture & defend Zones **A / B / C** to 200 pts
+  - **Free For All (FFA)** — Every Operator solo to 20 kills
+- **Playable Maps**
+  - **`AdminHall`** — COD4-style HQ interior & courtyard with grand atrium, 2nd-floor balconies & skybridge, glowing server room, executive offices, and exterior plaza
+  - **`Outpost Vector` (`Arena`)** — Open 3-lane combined-arms compound with drivable **Recon Buggies**
+- **Standard Multiplayer Connection Hub (Same Network + Different Networks)**
+  - **Same Wi-Fi / Hotspot / Wired LAN**: Automatic UDP discovery on port `47777` (zero IP typing — 1-click **JOIN**)
+  - **Different Networks / Friends Online**: 1-click shareable **Join Code (`IV-...`)** selector (Wi-Fi / LAN / VPN Tunnel / Public IP) + optional **Room Password Authentication** (`RoomPasswordAuthenticator`)
+  - **Dedicated Headless Server CLI**:
+    ```powershell
+    "IRON VECTOR.exe" -batchmode -nographics -server -map AdminHall -mode snd -port 7770 -pass secret123
+    ```
+- **Graphics & UI Settings**
+  - Live **Graphics Quality Presets** (`Low`, `Medium`, `High`, `Ultra` scaling URP renderScale, MSAA, cascades & shadow resolution)
+  - FPS Cap (`60 / 120 / 144 / Unlimited`), VSync, FOV, Mouse Sensitivity, FPS Counter
+  - **HUD / UI Off Mode**: Press **`H`** anytime (or toggle in Settings/Pause) to hide all combat HUD overlays
 
 ---
 
 ## Quick Start (Unity 6)
 
-1. **Install Unity 6.3 LTS** (`6000.3.0f1` or newer `6000.3.x`) via **Unity Hub**.
-2. Open this repository folder in Unity Hub (`Add` -> `Add project from disk`).
-   - Unity will automatically fetch `FishNet 4.7.4`, `URP`, and `Input System` from `Packages/manifest.json`.
-3. When the editor finishes compiling, click the dialog prompt **Build Arena & Prefabs** (or select **`Iron Vector -> Build Arena & Prefabs (One-Click Setup)`** from the top menu bar).
-   - This creates the URP pipeline asset, `WeaponData` assets, `Player.prefab`, `ReconBuggy.prefab`, `MatchManager.prefab`, `CapturePoint.prefab`, and `Assets/IronVector/Scenes/Arena.unity`.
-4. Open `Assets/IronVector/Scenes/Arena.unity` and press **Play**, then click **HOST MATCH**.
+1. Open this project folder (`D:\projects\Shooting Multiplayer Game`) in **Unity Hub** using **Unity 6.6 (`6000.6.10f1`)**.
+2. Click **`Iron Vector -> Build Arena & Prefabs (One-Click Setup)`** (or accept the first-open dialog) to generate all weapon assets, prefabs, PBR textures, **`MainMenu.unity`**, **`AdminHall.unity`**, and **`Arena.unity`**.
+3. Open `Assets/IronVector/Scenes/MainMenu.unity` and press **Play (`▶`)**.
+   - Choose **AdminHall** or **Outpost Vector**, select any of the **4 Game Modes**, customize your COD4 weapon + Strategy under **Loadout**, and click **HOST MATCH**.
 
-### Testing Multiplayer Locally
-
-- Install **Multiplayer Play Mode** (`com.unity.multiplayer.playmode`) from **Window -> Package Manager -> Unity Registry** to run 2–4 virtual player windows inside one Unity Editor (`Window -> Multiplayer Play Mode`), OR
-- Build an executable (`File -> Build Profiles -> Build`):
-  - **Dedicated Headless Server**:
-    ```powershell
-    "IRON VECTOR.exe" -batchmode -nographics -server -port 7770 -mode dom
-    ```
-  - **Auto-Connect Client**:
-    ```powershell
-    "IRON VECTOR.exe" -connect 127.0.0.1 -port 7770
-    ```
-
----
-
-## Controls
+### Controls
 
 | Key | Action |
 | :--- | :--- |
 | `W A S D` | Move / Drive |
 | `Shift` | Sprint |
 | `C` / `Ctrl` | Crouch (press while sprinting to Slide) |
-| `Space` | Jump / Vehicle Handbrake |
+| `Space` | Jump / Vehicle Handbrake / Next Spectate Target |
 | `LMB` / `RMB` | Fire / Aim Down Sights (ADS) |
 | `R` | Reload |
 | `1` / `2` / `Scroll` | Switch Primary / Sidearm |
 | `G` | Throw Frag Grenade |
-| `F` | Enter / Exit Vehicle |
+| `F` | Hold to Plant/Defuse Bomb (S&D) or Enter/Exit Vehicle |
+| `H` | Toggle HUD / UI On & Off |
 | `Tab` | Scoreboard |
-| `Esc` | Pause Menu / Settings / Disconnect |
-
----
-
-## Project Layout
-
-```text
-Assets/IronVector/
-├── Editor/
-│   └── IronVectorProjectSetup.cs      # Generates URP, weapon assets, prefabs & Arena scene
-└── Scripts/
-    ├── Core/                          # Combat contracts, FX/audio helpers, input, profile, spawn & server bootstrap
-    ├── GameMode/                      # MatchManager, CapturePoint (TDM & Domination)
-    ├── Player/                        # Identity, Health, Motor, Look, Hitbox, VehicleInteraction
-    ├── UI/                            # MainMenuUI, GameHUD
-    ├── Vehicles/                      # VehicleController, VehicleHealth
-    └── Weapons/                       # WeaponData, WeaponDatabase, WeaponController, GrenadeThrower
-docs/
-├── ARCHITECTURE.md                    # Networking, ownership & hit detection design
-└── GDD.md                             # Full vision, modes, weapons & roadmap
-```
-
----
-
-## Roadmap
-
-- [x] Core FishNet 4.7.4 networking, TDM & Domination match loop
-- [x] Movement (sprint, crouch, slide, jump) & 5-weapon arsenal + frag grenades
-- [x] Drivable Recon Buggy with suspension & ownership handoff
-- [x] One-click URP Arena generator (`Outpost Vector`)
-- [ ] Lag-compensated hitbox rollback (`TimeManager` tick rewind)
-- [ ] Gunsmith attachment system (optics, barrels, grips, suppressors)
-- [ ] APC transport with roof turret & anti-vehicle rocket launcher
-- [ ] Squad roles, ping system, UAV & tactical gadgets
-- [ ] Custom 3D weapon/character models, PBR materials & sound banks
+| `Esc` | Pause / Graphics & Loadout Settings / Disconnect |

@@ -4,9 +4,8 @@ using UnityEngine;
 namespace IronVector
 {
     /// <summary>
-    /// First-person movement (owner-driven, synced by NetworkTransform):
-    /// walk, sprint, crouch, slide, jump. Remote players read crouch height from the
-    /// synced camera pivot so their hitboxes shrink correctly on every client.
+    /// First-person movement: walk, sprint, crouch, slide, jump, scaled by weapon mobility
+    /// and Rusher strategy (+18% movement speed).
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class PlayerMotor : NetworkBehaviour
@@ -17,21 +16,21 @@ namespace IronVector
         public Transform head;
 
         [Header("Speeds")]
-        public float walkSpeed = 5.2f;
-        public float sprintSpeed = 8.2f;
-        public float crouchSpeed = 2.8f;
-        public float adsSpeedMultiplier = 0.6f;
-        public float acceleration = 14f;
-        public float airControl = 0.35f;
+        public float walkSpeed = 5.4f;
+        public float sprintSpeed = 8.4f;
+        public float crouchSpeed = 2.9f;
+        public float adsSpeedMultiplier = 0.62f;
+        public float acceleration = 15f;
+        public float airControl = 0.38f;
 
         [Header("Jump / Gravity")]
-        public float jumpHeight = 1.1f;
+        public float jumpHeight = 1.15f;
         public float gravity = -22f;
 
         [Header("Slide")]
-        public float slideSpeed = 11.5f;
-        public float slideDuration = 0.75f;
-        public float slideCooldown = 0.6f;
+        public float slideSpeed = 12.0f;
+        public float slideDuration = 0.72f;
+        public float slideCooldown = 0.55f;
 
         [Header("Stance")]
         public float standHeight = 1.8f;
@@ -39,7 +38,6 @@ namespace IronVector
         public float standEyeHeight = 1.6f;
         public float crouchEyeHeight = 1.0f;
 
-        /// <summary>Set by WeaponController while aiming down sights.</summary>
         [System.NonSerialized] public bool AimingDown;
 
         CharacterController _cc;
@@ -95,7 +93,6 @@ namespace IronVector
             bool firing = IVInput.Held(IVKey.Fire);
             bool wantsSprint = IVInput.Held(IVKey.Sprint) && input.y > 0.1f && !AimingDown && !firing;
 
-            // Slide = crouch while sprinting.
             if (IVInput.Down(IVKey.Crouch) && IsSprinting && grounded && Time.time >= _nextSlideTime)
             {
                 _slideTimer = slideDuration;
@@ -109,14 +106,17 @@ namespace IronVector
             _crouching = wantsCrouch;
             IsSprinting = wantsSprint && !_crouching;
 
-            float targetSpeed = _crouching ? crouchSpeed : IsSprinting ? sprintSpeed : walkSpeed;
+            float perkSpeedMult = _id.Strategy.Value == (int)TacticalStrategy.Rusher ? 1.18f : 1.0f;
+            float weaponMult = _id.Weapons != null ? _id.Weapons.MoveSpeedMultiplier : 1.0f;
+
+            float targetSpeed = (_crouching ? crouchSpeed : IsSprinting ? sprintSpeed : walkSpeed) * perkSpeedMult * weaponMult;
             if (AimingDown) targetSpeed *= adsSpeedMultiplier;
             Vector3 wish = (transform.right * input.x + transform.forward * input.y) * targetSpeed;
 
             if (_slideTimer > 0f)
             {
                 float k = Mathf.Clamp01(_slideTimer / slideDuration);
-                _horizontalVelocity = _slideDirection * Mathf.Lerp(crouchSpeed, slideSpeed, k);
+                _horizontalVelocity = _slideDirection * Mathf.Lerp(crouchSpeed, slideSpeed * perkSpeedMult, k);
             }
             else
             {
@@ -166,7 +166,6 @@ namespace IronVector
             return !Physics.SphereCast(start, r, Vector3.up, out _, distance, ~0, QueryTriggerInteraction.Ignore);
         }
 
-        /// <summary>Owner-side teleport (respawn, vehicle exit).</summary>
         public void Teleport(Vector3 position, Quaternion rotation)
         {
             bool wasEnabled = _cc.enabled;

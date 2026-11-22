@@ -8,8 +8,8 @@ using UnityEngine.Rendering;
 namespace IronVector
 {
     /// <summary>
-    /// Handles weapon switching (1/2/scroll), ADS, hip/ADS spread, recoil, reload,
-    /// raycast hit detection (with head Hitbox check) and procedural 3D weapon viewmodels.
+    /// COD4-style gunplay controller: primary/sidearm switching, ADS snap, sprint tilt,
+    /// strategy perk modifiers (Stopping Power / Rusher / Ghost), multi-part 3D viewmodels and server validation.
     /// </summary>
     public class WeaponController : NetworkBehaviour
     {
@@ -18,6 +18,7 @@ namespace IronVector
         public Transform weaponHolder;
 
         public readonly SyncVar<int> PrimaryIndex = new SyncVar<int>(0);
+        public readonly SyncVar<int> SecondaryIndex = new SyncVar<int>(0);
         public readonly SyncVar<int> ActiveSlot = new SyncVar<int>(0);
 
         PlayerIdentity _id;
@@ -35,8 +36,9 @@ namespace IronVector
         GameObject _currentModel;
         Transform _muzzlePoint;
         Vector3 _hipLocalPos = new Vector3(0.24f, -0.22f, 0.45f);
-        Vector3 _adsLocalPos = new Vector3(0f, -0.145f, 0.36f);
+        Vector3 _adsLocalPos = new Vector3(0f, -0.142f, 0.35f);
         float _recoilKickZ;
+        float _sprintTilt;
 
         readonly RaycastHit[] _rayBuffer = new RaycastHit[32];
 
@@ -48,6 +50,7 @@ namespace IronVector
         public int CurrentAmmo => _magAmmo[Mathf.Clamp(ActiveSlot.Value, 0, 1)];
         public int CurrentReserve => _reserveAmmo[Mathf.Clamp(ActiveSlot.Value, 0, 1)];
         public bool IsSniperScope => CurrentWeapon != null && CurrentWeapon.category == WeaponCategory.Sniper && _ads > 0.72f;
+        public float MoveSpeedMultiplier => CurrentWeapon != null ? CurrentWeapon.moveSpeedMultiplier : 1f;
 
         public WeaponData CurrentWeapon
         {
@@ -55,7 +58,9 @@ namespace IronVector
             {
                 WeaponDatabase db = ActiveDb;
                 if (db == null || db.Count == 0) return null;
-                int idx = ActiveSlot.Value == 1 ? db.sidearmIndex : db.ClampPrimaryIndex(PrimaryIndex.Value);
+                int idx = ActiveSlot.Value == 1
+                    ? db.ResolveSidearmIndex(SecondaryIndex.Value)
+                    : db.ClampPrimaryIndex(PrimaryIndex.Value);
                 return db.Get(idx);
             }
         }
@@ -67,6 +72,7 @@ namespace IronVector
             _id = GetComponent<PlayerIdentity>();
             if (weaponHolder != null) _hipLocalPos = weaponHolder.localPosition;
             PrimaryIndex.OnChange += OnWeaponChanged;
+            SecondaryIndex.OnChange += OnWeaponChanged;
             ActiveSlot.OnChange += OnWeaponChanged;
         }
 
@@ -81,7 +87,7 @@ namespace IronVector
             base.OnStartClient();
             if (IsOwner)
             {
-                ServerSetLoadout(LocalProfile.PrimaryWeapon);
+                ServerSetLoadout(LocalProfile.PrimaryWeapon, LocalProfile.SecondaryWeapon);
                 ResetLocalAmmo();
             }
             RebuildWeaponModel();
@@ -93,10 +99,17 @@ namespace IronVector
             RebuildWeaponModel();
         }
 
+        public void ClientApplyNewLoadout(int primaryIdx, int secondaryIdx)
+        {
+            if (!IsOwner) return;
+            ServerSetLoadout(primaryIdx, secondaryIdx);
+        }
+
         [ServerRpc]
-        void ServerSetLoadout(int primaryIdx)
+        void ServerSetLoadout(int primaryIdx, int secondaryIdx)
         {
             PrimaryIndex.Value = ActiveDb.ClampPrimaryIndex(primaryIdx);
+            SecondaryIndex.Value = Mathf.Clamp(secondaryIdx, 0, 1);
             ServerResetAmmo();
         }
 
@@ -109,7 +122,6 @@ namespace IronVector
 
         public void ServerResetAmmo()
         {
-            // Light server tracking alongside rate limiting.
             _serverNextShotTime[0] = 0f;
             _serverNextShotTime[1] = 0f;
         }
@@ -118,6 +130,7 @@ namespace IronVector
         {
             _reloading = false;
             _ads = 0f;
+            ServerSetLoadout(LocalProfile.PrimaryWeapon, LocalProfile.SecondaryWeapon);
             ResetLocalAmmo();
             if (_id != null)
             {
@@ -137,7 +150,9 @@ namespace IronVector
         WeaponData GetWeaponForSlot(int slot)
         {
             WeaponDatabase db = ActiveDb;
-            int idx = slot == 1 ? db.sidearmIndex : db.ClampPrimaryIndex(PrimaryIndex.Value);
+            int idx = slot == 1
+                ? db.ResolveSidearmIndex(SecondaryIndex.Value)
+                : db.ClampPrimaryIndex(PrimaryIndex.Value);
             return db.Get(idx);
         }
 
@@ -169,7 +184,6 @@ namespace IronVector
 
             HandleSwitching();
 
-            // Reload progression.
             if (_reloading)
             {
                 if (ActiveSlot.Value != _reloadSlot)
@@ -186,31 +200,40 @@ namespace IronVector
                 TryStartReload(w);
             }
 
-            // ADS smoothing.
+            bool isRusher = _id.Strategy.Value == (int)TacticalStrategy.Rusher;
+            bool isGhost = _id.Strategy.Value == (int)TacticalStrategy.Ghost;
+            float adsSpeedMult = isRusher ? 1.25f : 1f;
+
             bool wantsAds = IVInput.Held(IVKey.Aim) && !_reloading;
-            _ads = Mathf.MoveTowards(_ads, wantsAds ? 1f : 0f, Time.deltaTime * w.adsSpeed);
+            _ads = Mathf.MoveTowards(_ads, wantsAds ? 1f : 0f, Time.deltaTime * w.adsSpeed * adsSpeedMult);
             if (_id.Motor != null) _id.Motor.AimingDown = _ads > 0.25f;
             if (_id.Look != null) _id.Look.FovMultiplier = Mathf.Lerp(1f, w.adsFovMultiplier, _ads);
 
-            float movePenalty = _id.Motor != null ? _id.Motor.Speed01 * 1.4f : 0f;
-            float crouchBonus = _id.Motor != null && _id.Motor.IsCrouching ? 0.72f : 1f;
-            CurrentSpreadDegrees = Mathf.Lerp(w.hipSpread, w.adsSpread, _ads) * crouchBonus + movePenalty * (1f - _ads * 0.7f);
+            float movePenalty = _id.Motor != null ? _id.Motor.Speed01 * (isGhost ? 0.95f : 1.35f) : 0f;
+            float crouchBonus = _id.Motor != null && _id.Motor.IsCrouching ? 0.70f : 1f;
+            CurrentSpreadDegrees = Mathf.Lerp(w.hipSpread, w.adsSpread, _ads) * crouchBonus + movePenalty * (1f - _ads * 0.72f);
 
             UpdateHolderPose(w);
 
-            // Firing.
             bool trigger = w.automatic ? IVInput.Held(IVKey.Fire) : IVInput.Down(IVKey.Fire);
-            if (trigger && !_reloading && Time.time >= _nextFireTime)
+            if (trigger && Time.time >= _nextFireTime)
             {
                 int slot = ActiveSlot.Value;
-                if (_magAmmo[slot] <= 0)
+                // COD-style reload cancel when clicking fire if rounds remain in mag.
+                if (_reloading && _magAmmo[slot] > 0 && IVInput.Down(IVKey.Fire))
+                    _reloading = false;
+
+                if (!_reloading)
                 {
-                    if (IVInput.Down(IVKey.Fire)) FxUtil.PlaySound2D(FxUtil.ClickClip, 0.5f, 1.1f);
-                    TryStartReload(w);
-                }
-                else
-                {
-                    FireOwner(w, slot);
+                    if (_magAmmo[slot] <= 0)
+                    {
+                        if (IVInput.Down(IVKey.Fire)) FxUtil.PlaySound2D(FxUtil.ClickClip, 0.5f, 1.1f);
+                        TryStartReload(w);
+                    }
+                    else
+                    {
+                        FireOwner(w, slot);
+                    }
                 }
             }
         }
@@ -229,7 +252,8 @@ namespace IronVector
             _reloading = true;
             _reloadSlot = slot;
             _reloadStart = Time.time;
-            _reloadDuration = w.reloadTime;
+            float reloadMult = _id.Strategy.Value == (int)TacticalStrategy.Rusher ? 0.65f : 1.0f; // Sleight of Hand
+            _reloadDuration = w.reloadTime * reloadMult;
             FxUtil.PlaySound2D(FxUtil.ReloadClip, 0.7f, 1.0f);
         }
 
@@ -246,15 +270,24 @@ namespace IronVector
         void UpdateHolderPose(WeaponData w)
         {
             if (weaponHolder == null) return;
-            _recoilKickZ = Mathf.Lerp(_recoilKickZ, 0f, Time.deltaTime * 14f);
-            float moveBob = (_id.Motor != null && _id.Motor.IsGrounded) ? _id.Motor.Speed01 * 0.015f : 0f;
-            float bobX = Mathf.Sin(Time.time * 9f) * moveBob * (1f - _ads * 0.8f);
-            float bobY = Mathf.Abs(Mathf.Cos(Time.time * 9f)) * moveBob * (1f - _ads * 0.8f);
-            Vector3 basePos = Vector3.Lerp(_hipLocalPos, _adsLocalPos, _ads);
-            Vector3 reloadOffset = _reloading ? new Vector3(0f, -0.14f, 0f) : Vector3.zero;
-            weaponHolder.localPosition = basePos + reloadOffset + new Vector3(bobX, -bobY, -_recoilKickZ);
+            _recoilKickZ = Mathf.Lerp(_recoilKickZ, 0f, Time.deltaTime * 16f);
+            bool sprinting = _id.Motor != null && _id.Motor.IsSprinting && _ads < 0.1f && !_reloading;
+            _sprintTilt = Mathf.Lerp(_sprintTilt, sprinting ? 1f : 0f, Time.deltaTime * 11f);
 
-            // Hide own gun geometry cleanly while looking through a sniper scope.
+            float moveBob = (_id.Motor != null && _id.Motor.IsGrounded) ? _id.Motor.Speed01 * 0.016f : 0f;
+            float bobSpeed = sprinting ? 12f : 9f;
+            float bobX = Mathf.Sin(Time.time * bobSpeed) * moveBob * (1f - _ads * 0.82f);
+            float bobY = Mathf.Abs(Mathf.Cos(Time.time * bobSpeed)) * moveBob * (1f - _ads * 0.82f);
+
+            Vector3 basePos = Vector3.Lerp(_hipLocalPos, _adsLocalPos, _ads);
+            Vector3 sprintOffset = new Vector3(-0.07f, -0.04f, -0.05f) * _sprintTilt;
+            Vector3 reloadOffset = _reloading ? new Vector3(0f, -0.15f, -0.04f) : Vector3.zero;
+            weaponHolder.localPosition = basePos + sprintOffset + reloadOffset + new Vector3(bobX, -bobY, -_recoilKickZ);
+
+            Quaternion sprintRot = Quaternion.Euler(14f * _sprintTilt, -24f * _sprintTilt, 8f * _sprintTilt);
+            Quaternion reloadRot = _reloading ? Quaternion.Euler(28f, -15f, 18f) : Quaternion.identity;
+            weaponHolder.localRotation = sprintRot * reloadRot;
+
             if (w.category == WeaponCategory.Sniper && _currentModel != null)
             {
                 bool showGun = _modelsVisible && !IsSniperScope;
@@ -267,7 +300,7 @@ namespace IronVector
             _magAmmo[slot]--;
             _nextFireTime = Time.time + 60f / Mathf.Max(1f, w.fireRateRPM);
             LastShotTime = Time.time;
-            _recoilKickZ = Mathf.Min(0.08f, _recoilKickZ + 0.035f);
+            _recoilKickZ = Mathf.Min(0.085f, _recoilKickZ + 0.04f);
 
             Camera cam = _id.Look != null ? _id.Look.playerCamera : null;
             Transform aimTf = cam != null ? cam.transform : (_id.Motor != null && _id.Motor.cameraPivot != null ? _id.Motor.cameraPivot : transform);
@@ -291,30 +324,37 @@ namespace IronVector
                     FxUtil.Impact(endPt, normal, flesh);
 
                 if (nob != null)
-                {
-                    reports.Add(new HitReport
-                    {
-                        Target = nob,
-                        Point = endPt,
-                        Headshot = headshot
-                    });
-                }
+                    reports.Add(new HitReport { Target = nob, Point = endPt, Headshot = headshot });
             }
 
             FxUtil.MuzzleFlash(muzzle, aimTf.forward);
+            SpawnShellEject(muzzle - aimTf.forward * 0.25f + aimTf.right * 0.06f, aimTf.right, aimTf.up);
             FxUtil.PlaySound2D(FxUtil.ShotClip, 0.85f, w.shotPitch * UnityEngine.Random.Range(0.96f, 1.04f));
 
             if (_id.Look != null)
             {
                 float hRecoil = UnityEngine.Random.Range(-w.recoilHorizontal, w.recoilHorizontal);
-                float adsReduction = Mathf.Lerp(1f, 0.72f, _ads);
+                float adsReduction = Mathf.Lerp(1f, 0.70f, _ads);
                 _id.Look.AddRecoil(w.recoilVertical * adsReduction, hRecoil * adsReduction);
+                _id.Look.AddScreenShake(w.screenShake * adsReduction);
             }
 
             ServerFire(slot, origin, muzzle, endPoints, hitFlesh, reports.ToArray());
 
             if (_magAmmo[slot] <= 0 && _reserveAmmo[slot] > 0)
                 TryStartReload(w);
+        }
+
+        static void SpawnShellEject(Vector3 pos, Vector3 right, Vector3 up)
+        {
+            if (!FxUtil.Enabled) return;
+            GameObject shell = FxUtil.Blob(PrimitiveType.Cube, pos, 0.022f, new Color(0.88f, 0.72f, 0.26f), 0.28f);
+            if (shell == null) return;
+            shell.transform.localScale = new Vector3(0.012f, 0.012f, 0.032f);
+            var rb = shell.AddComponent<Rigidbody>();
+            rb.mass = 0.02f;
+            rb.linearVelocity = right * UnityEngine.Random.Range(1.8f, 3.0f) + up * UnityEngine.Random.Range(1.2f, 2.2f);
+            rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 25f;
         }
 
         void CastBullet(Vector3 origin, Vector3 dir, float range, out Vector3 hitPoint, out Vector3 hitNormal, out bool hitFlesh, out bool headshot, out NetworkObject targetNob)
@@ -338,8 +378,6 @@ namespace IronVector
                 RaycastHit h = _rayBuffer[i];
                 Collider col = h.collider;
                 if (col == null || col.transform.IsChildOf(transform)) continue;
-
-                // Stop searching deeper if we already entered a player capsule and moved past head depth.
                 if (firstDamageable != null && h.distance > firstDist + 0.65f) break;
 
                 Hitbox hb = col.GetComponent<Hitbox>();
@@ -372,11 +410,10 @@ namespace IronVector
                         hitNormal = h.normal;
                         hitFlesh = col.GetComponentInParent<PlayerHealth>() != null;
                     }
-                    if (col.GetComponentInParent<PlayerHealth>() == null) return; // Vehicle / non-player collider
+                    if (col.GetComponentInParent<PlayerHealth>() == null) return;
                     continue;
                 }
 
-                // World obstacle stops the bullet.
                 if (firstDamageable == null)
                 {
                     hitPoint = h.point;
@@ -399,8 +436,9 @@ namespace IronVector
             if (Time.time < _serverNextShotTime[slot]) return;
             _serverNextShotTime[slot] = Time.time + minInterval;
 
-            // Validate origin near player eyes.
             if (Vector3.Distance(origin, transform.position + Vector3.up * 1.4f) > 3.5f) return;
+
+            float perkDamageMult = _id.Strategy.Value == (int)TacticalStrategy.Breacher ? 1.15f : 1.0f; // Stopping Power
 
             if (reports != null)
             {
@@ -413,14 +451,12 @@ namespace IronVector
 
                     float distToTarget = Vector3.Distance(origin, hr.Target.transform.position);
                     if (distToTarget > w.range + 6f) continue;
-
-                    // Generous anti-cheat sanity check allowing movement latency.
                     if (Vector3.Distance(hr.Point, hr.Target.transform.position + Vector3.up * 0.9f) > 5.0f) continue;
 
                     IDamageable dmg = hr.Target.GetComponent<IDamageable>();
                     if (dmg == null || !dmg.IsAlive) continue;
 
-                    float amount = w.damage * (hr.Headshot ? w.headshotMultiplier : 1f);
+                    float amount = w.damage * perkDamageMult * (hr.Headshot ? w.headshotMultiplier : 1f);
                     dmg.ServerTakeDamage(new DamageInfo
                     {
                         Amount = amount,
@@ -466,44 +502,78 @@ namespace IronVector
             _currentModel.transform.SetParent(weaponHolder, false);
 
             // Receiver
-            var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Destroy(body.GetComponent<Collider>());
-            body.transform.SetParent(_currentModel.transform, false);
-            body.transform.localScale = w.modelScale;
-            var br = body.GetComponent<Renderer>();
-            br.sharedMaterial = FxUtil.ColorMaterial(w.bodyColor);
-            br.shadowCastingMode = ShadowCastingMode.Off;
+            AddWeaponPart("Receiver", PrimitiveType.Cube, Vector3.zero, w.modelScale, w.bodyColor);
 
-            // Barrel
-            var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Destroy(barrel.GetComponent<Collider>());
-            barrel.transform.SetParent(_currentModel.transform, false);
-            barrel.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            barrel.transform.localScale = new Vector3(0.025f, w.barrelLength * 0.5f, 0.025f);
-            barrel.transform.localPosition = new Vector3(0f, 0.015f, w.modelScale.z * 0.45f + w.barrelLength * 0.4f);
-            var barR = barrel.GetComponent<Renderer>();
-            barR.sharedMaterial = FxUtil.ColorMaterial(w.accentColor);
-            barR.shadowCastingMode = ShadowCastingMode.Off;
+            // Pistol Grip
+            AddWeaponPart("Grip", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 0.85f, -w.modelScale.z * 0.16f),
+                new Vector3(0.032f, 0.085f, 0.042f), w.bodyColor, new Vector3(16f, 0f, 0f));
 
-            // Optic / Scope
-            var optic = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Destroy(optic.GetComponent<Collider>());
-            optic.transform.SetParent(_currentModel.transform, false);
-            optic.transform.localScale = w.category == WeaponCategory.Sniper
-                ? new Vector3(0.038f, 0.038f, 0.24f)
-                : new Vector3(0.03f, 0.025f, 0.09f);
-            optic.transform.localPosition = new Vector3(0f, w.modelScale.y * 0.65f, 0.04f);
-            var or = optic.GetComponent<Renderer>();
-            or.sharedMaterial = FxUtil.ColorMaterial(w.accentColor);
-            or.shadowCastingMode = ShadowCastingMode.Off;
+            // Handguard & Stock (if long gun)
+            if (w.category != WeaponCategory.Pistol)
+            {
+                AddWeaponPart("Stock", PrimitiveType.Cube, new Vector3(0f, -0.01f, -w.modelScale.z * 0.62f),
+                    new Vector3(0.040f, 0.070f, 0.22f), w.accentColor);
+                AddWeaponPart("Handguard", PrimitiveType.Cube, new Vector3(0f, -0.005f, w.modelScale.z * 0.36f),
+                    new Vector3(w.modelScale.x * 1.05f, w.modelScale.y * 0.80f, w.modelScale.z * 0.38f), w.accentColor);
+            }
 
-            // Muzzle marker
+            // Magazine style
+            if (w.visualStyle == WeaponVisualStyle.P90TopMag)
+            {
+                AddWeaponPart("TopMag", PrimitiveType.Cube, new Vector3(0f, w.modelScale.y * 0.55f, 0.05f),
+                    new Vector3(0.044f, 0.025f, 0.26f), new Color(0.25f, 0.22f, 0.16f));
+            }
+            else if (w.visualStyle == WeaponVisualStyle.LightMachineGun)
+            {
+                AddWeaponPart("BoxMag", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 1.15f, 0.05f),
+                    new Vector3(0.11f, 0.12f, 0.14f), w.accentColor);
+            }
+            else if (w.category != WeaponCategory.Shotgun && w.category != WeaponCategory.Sniper)
+            {
+                float magTilt = w.visualStyle == WeaponVisualStyle.KalashnikovWood ? -22f : -8f;
+                float magLen = w.category == WeaponCategory.Pistol ? 0.06f : 0.14f;
+                AddWeaponPart("Magazine", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 1.05f, 0.07f),
+                    new Vector3(0.028f, magLen, 0.048f), w.accentColor, new Vector3(magTilt, 0f, 0f));
+            }
+
+            // Barrel + Optional Suppressor
+            bool hasSuppressor = w.visualStyle == WeaponVisualStyle.SubmachineSuppressed;
+            AddWeaponPart("Barrel", PrimitiveType.Cylinder,
+                new Vector3(0f, 0.012f, w.modelScale.z * 0.45f + w.barrelLength * 0.4f),
+                new Vector3(hasSuppressor ? 0.040f : 0.024f, w.barrelLength * 0.5f, hasSuppressor ? 0.040f : 0.024f),
+                w.visualStyle == WeaponVisualStyle.ChromeHandCannon ? w.bodyColor : new Color(0.12f, 0.12f, 0.13f),
+                new Vector3(90f, 0f, 0f));
+
+            // Optic / Iron Sight
+            Vector3 opticScale = w.category == WeaponCategory.Sniper
+                ? new Vector3(0.040f, 0.040f, 0.26f)
+                : (w.category == WeaponCategory.AssaultRifle || w.visualStyle == WeaponVisualStyle.P90TopMag
+                    ? new Vector3(0.032f, 0.028f, 0.10f)
+                    : new Vector3(0.018f, 0.016f, 0.03f));
+            AddWeaponPart("Optic", PrimitiveType.Cube,
+                new Vector3(0f, w.modelScale.y * 0.65f, w.category == WeaponCategory.Pistol ? w.modelScale.z * 0.4f : 0.02f),
+                opticScale, new Color(0.12f, 0.12f, 0.14f));
+
             var muzzleGo = new GameObject("Muzzle");
             muzzleGo.transform.SetParent(_currentModel.transform, false);
-            muzzleGo.transform.localPosition = new Vector3(0f, 0.015f, w.modelScale.z * 0.45f + w.barrelLength);
+            muzzleGo.transform.localPosition = new Vector3(0f, 0.012f, w.modelScale.z * 0.45f + w.barrelLength);
             _muzzlePoint = muzzleGo.transform;
 
             weaponHolder.gameObject.SetActive(_modelsVisible);
+        }
+
+        void AddWeaponPart(string partName, PrimitiveType type, Vector3 pos, Vector3 scale, Color color, Vector3 euler = default)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            Destroy(go.GetComponent<Collider>());
+            go.name = partName;
+            go.transform.SetParent(_currentModel.transform, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(euler);
+            go.transform.localScale = scale;
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = FxUtil.ColorMaterial(color);
+            r.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         static Vector3 ApplySpread(Vector3 forward, float spreadDegrees)

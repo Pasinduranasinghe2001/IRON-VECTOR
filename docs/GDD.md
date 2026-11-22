@@ -1,53 +1,48 @@
 # IRON VECTOR — Game Design Document (GDD)
 
-## 1. High-Level Concept
+## 1. Vision
 
-**IRON VECTOR** is a modern combined-arms tactical first-person shooter inspired by *Call of Duty: Modern Warfare* gunplay and lightweight *Battlefield*-style vehicle skirmishes.
-
-- **Core Loop**: Select loadout -> Deploy with squad -> Fight over lanes or capture objectives using infantry movement, cover, grenades, and vehicles -> Earn score & eliminate opposing team to win rounds.
-- **Target Feel**: Crisp responsiveness, readable silhouettes, decisive headshots, low-clutter HUD, and balanced infantry vs vehicle counters.
+**IRON VECTOR** brings *Call of Duty 4: Modern Warfare* tactical infantry gunplay, iconic weapon silhouettes, Search & Destroy round tension, and lightweight combined-arms vehicle combat into a fast, extensible Unity 6 + FishNet multiplayer game.
 
 ---
 
-## 2. Game Modes
+## 2. Game Modes (4 Implemented)
 
-| Mode | Objective | Score Limit | Round Time | Map Lanes Used |
-| :--- | :--- | :--- | :--- | :--- |
-| **Team Deathmatch (TDM)** | First team to reach elimination limit wins | 30 kills | 10 min | All 3 lanes |
-| **Domination (DOM)** | Hold points A, B, and C to accumulate points every second | 200 pts | 10 min | North Road (A), Center Deck (B), South Cargo (C) |
-| **Search & Destroy (Planned)** | 1-life tactical bomb plant/defuse | Best of 7 | 2 min / round | Infantry lanes |
-
----
-
-## 3. Arsenal
-
-### Vertical Slice Weapons (Implemented as `WeaponData`)
-
-| Weapon | Category | Role | RPM | Base / Head Damage | Mag / Reserve |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **M4A1 Carbine** | Assault Rifle | Versatile all-range automatic | 720 | 24 / 38.4 | 30 / 120 |
-| **MP5K Tactical** | SMG | Fast CQB & tight hipfire | 880 | 19 / 28.5 | 32 / 160 |
-| **M24 Sniper** | Bolt Rifle | Long-range overwatch, 1-shot headshot | 52 | 75 / 165 | 5 / 25 |
-| **M870 Breacher** | Shotgun | 8-pellet room clearer | 78 | 16 x 8 = 128 | 6 / 36 |
-| **P226 Sidearm** | Pistol | Reliable backup finish | 420 | 26 / 45.5 | 15 / 60 |
-
-### Equipment & Gadgets
-- **Frag Grenade (Implemented)**: 2 per life, 2.2s fuse, 8.5m blast radius blocked by solid walls.
-- **Planned**: Smoke Grenade, EMP/RPG-7 Anti-Armor Launcher, Deployable Ballistic Cover, UAV Radar Sweep.
+| Mode | Rules | Win Condition | Respawns |
+| :--- | :--- | :--- | :--- |
+| **Team Deathmatch** | Alpha vs Bravo eliminations | 30 kills | 3.5s auto-respawn |
+| **Search & Destroy** | Alpha plants bomb (`F`) at Site A/B; Bravo eliminates or defuses (`F`) within 35s | First to 4 rounds | Eliminated players spectate allies until next round |
+| **Domination** | Hold Capture Points A, B, C to accumulate points/sec | 200 points | 3.5s auto-respawn |
+| **Free For All** | Solo operators | 20 eliminations | 3.5s auto-respawn farthest from enemies |
 
 ---
 
-## 4. Vehicles
+## 3. COD4-Inspired Arsenal
 
-- **Recon Buggy (Implemented)**: Fast 1-seat flanking & harassment platform (450 HP, raycast spring suspension, roadkill impact damage, 20s respawn timer). Vulnerable to concentrated rifle fire, grenades, and enemy ambush in the South CQB lane.
-- **Armored Tactical APC (Planned)**: Driver + 360-degree gunner turret seat, high armor, countered by anti-armor launcher.
+| Slot | Weapon | Class | RPM | Base / HS Dmg | Mag / Reserve | Role |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Primary 0 | **M4A1 Carbine** | AR | 780 | 25 / 38.8 | 30 / 150 | Versatile precision rifle |
+| Primary 1 | **AK-47** | AR | 650 | 34 / 54.4 | 30 / 120 | High stopping power |
+| Primary 2 | **MP5** | SMG | 820 | 24 / 36.0 | 30 / 150 | Fast CQB mobility |
+| Primary 3 | **P90** | SMG | 920 | 20 / 30.0 | 50 / 150 | Sustained spray & tight hipfire |
+| Primary 4 | **M40A3** | Sniper | 50 | 88 / 193.6 | 5 / 25 | 1-shot headshot quick-scope |
+| Primary 5 | **W1200** | Shotgun | 76 | 20x8 (160) | 7 / 35 | Room clearing |
+| Primary 6 | **M249 SAW** | LMG | 750 | 28 / 42.0 | 100 / 200 | Lane suppression |
+| Sidearm 0 | **M9** | Pistol | 480 | 28 / 49.0 | 15 / 60 | Fast finisher |
+| Sidearm 1 | **Desert Eagle** | Pistol | 290 | 52 / 104.0 | 7 / 35 | Heavy .50 cal hand cannon |
 
 ---
 
-## 5. Map Design — *Outpost Vector*
+## 4. 4 Tactical Strategies
 
-A symmetrical 3-lane 120m x 96m compound designed for both 5v5 CQB and light vehicle flanking:
+1. **Assault · Stopping Power**: `+15%` bullet damage.
+2. **Recon · Ghost (UAV Jammer)**: Invisible to enemy radar when firing + reduced moving hipfire bloom.
+3. **Rusher · Speed & Sleight of Hand**: `+18%` movement/slide speed, `-35%` reload duration, `+25%` ADS speed.
+4. **Support · Juggernaut & Danger Close**: `125` Max HP armor, faster health regen, `+25%` grenade radius & blast damage.
 
-1. **North Lane (Vehicle Avenue — Capture Point A)**: Wide road with jump ramps connecting Alpha & Bravo motor pools.
-2. **Center Lane (Control Deck — Capture Point B)**: Elevated steel bridge reached via flanking ramps, rewarding vertical control while remaining exposed to grenades and sniper angles.
-3. **South Lane (Cargo Yard — Capture Point C)**: Tight shipping container corridors built for SMGs and shotguns.
+---
+
+## 5. Maps
+
+1. **`AdminHall`** (Flagship HQ Interior + Plaza): Two-tier marble atrium, flanking staircases & skybridge, server room (Site A), conference wing (Site B), and exterior fountain courtyard.
+2. **`Outpost Vector` (`Arena`)**: Open 3-lane combined-arms compound featuring drivable Recon Buggies, center warehouse deck, and South CQB cargo yard.

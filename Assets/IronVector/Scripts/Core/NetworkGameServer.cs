@@ -1,22 +1,24 @@
 using System.Collections;
 using FishNet.Connection;
 using FishNet.Managing;
+using FishNet.Managing.Scened;
 using FishNet.Object;
 using FishNet.Transporting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace IronVector
 {
     /// <summary>
-    /// Server bootstrap: when the server starts it spawns the MatchManager, vehicles and
-    /// capture points; when a client finishes loading it spawns that client's player.
+    /// Persistent server bootstrap: loads the selected map scene across all clients,
+    /// spawns MatchManager, capture/bomb objectives and vehicles, and spawns joining players.
     /// </summary>
     public class NetworkGameServer : MonoBehaviour
     {
         public static NetworkGameServer Instance { get; private set; }
 
-        /// <summary>Set by the menu (or -mode command line arg) before the server starts.</summary>
         public static GameMode SelectedMode = GameMode.TeamDeathmatch;
+        public static string SelectedMapScene = "AdminHall";
 
         public NetworkManager networkManager;
 
@@ -25,10 +27,7 @@ namespace IronVector
         public NetworkObject matchManagerPrefab;
         public NetworkObject vehiclePrefab;
         public NetworkObject capturePointPrefab;
-
-        [Header("Map Markers")]
-        public Transform[] vehicleSpawns = new Transform[0];
-        public Transform[] capturePoints = new Transform[0];
+        public NetworkObject bombSitePrefab;
 
         public float vehicleRespawnDelay = 20f;
 
@@ -36,6 +35,11 @@ namespace IronVector
 
         void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
             Instance = this;
             if (networkManager == null) networkManager = FindAnyObjectByType<NetworkManager>();
         }
@@ -44,10 +48,11 @@ namespace IronVector
         {
             if (networkManager == null)
             {
-                Debug.LogError("[IRON VECTOR] No NetworkManager found in scene.");
+                Debug.LogError("[IRON VECTOR] No NetworkManager found.");
                 return;
             }
             networkManager.ServerManager.OnServerConnectionState += OnServerConnectionState;
+            networkManager.SceneManager.OnLoadEnd += OnSceneLoadEnd;
             networkManager.SceneManager.OnClientLoadedStartScenes += OnClientLoadedStartScenes;
         }
 
@@ -56,15 +61,31 @@ namespace IronVector
             if (Instance == this) Instance = null;
             if (networkManager == null) return;
             if (networkManager.ServerManager != null) networkManager.ServerManager.OnServerConnectionState -= OnServerConnectionState;
-            if (networkManager.SceneManager != null) networkManager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedStartScenes;
+            if (networkManager.SceneManager != null)
+            {
+                networkManager.SceneManager.OnLoadEnd -= OnSceneLoadEnd;
+                networkManager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedStartScenes;
+            }
         }
 
         void OnServerConnectionState(ServerConnectionStateArgs args)
         {
-            if (args.ConnectionState == LocalConnectionState.Started && !_worldSpawned)
+            if (args.ConnectionState == LocalConnectionState.Started)
             {
-                _worldSpawned = true;
-                StartCoroutine(SpawnWorldRoutine());
+                _worldSpawned = false;
+                string activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                if (activeScene != SelectedMapScene)
+                {
+                    var sld = new SceneLoadData(SelectedMapScene)
+                    {
+                        ReplaceScenes = ReplaceOption.All
+                    };
+                    networkManager.SceneManager.LoadGlobalScenes(sld);
+                }
+                else
+                {
+                    StartCoroutine(SpawnWorldRoutine());
+                }
             }
             else if (args.ConnectionState == LocalConnectionState.Stopped)
             {
@@ -73,41 +94,70 @@ namespace IronVector
             }
         }
 
+        void OnSceneLoadEnd(SceneLoadEndEventArgs args)
+        {
+            if (!networkManager.IsServerStarted || _worldSpawned) return;
+            if (args.QueueData.AsServer && MapConfig.Instance != null)
+                StartCoroutine(SpawnWorldRoutine());
+        }
+
         IEnumerator SpawnWorldRoutine()
         {
-            yield return null; // let the server finish initializing
-            if (!networkManager.IsServerStarted) yield break;
+            yield return null;
+            if (!networkManager.IsServerStarted || _worldSpawned) yield break;
+            _worldSpawned = true;
 
-            if (matchManagerPrefab != null)
+            MapConfig map = MapConfig.Instance;
+
+            if (matchManagerPrefab != null && MatchManager.Instance == null)
                 networkManager.ServerManager.Spawn(Instantiate(matchManagerPrefab));
 
-            for (int i = 0; i < vehicleSpawns.Length; i++)
-                SpawnVehicle(i);
-
-            if (SelectedMode == GameMode.Domination && capturePointPrefab != null)
+            if (map != null)
             {
-                for (int i = 0; i < capturePoints.Length; i++)
+                if (SelectedMode != GameMode.SearchAndDestroy)
                 {
-                    if (capturePoints[i] == null) continue;
-                    NetworkObject cp = Instantiate(capturePointPrefab, capturePoints[i].position, capturePoints[i].rotation);
-                    cp.GetComponent<CapturePoint>().ServerLabel = i;
-                    networkManager.ServerManager.Spawn(cp);
+                    for (int i = 0; i < map.vehicleSpawns.Length; i++)
+                        SpawnVehicle(i);
+                }
+
+                if (SelectedMode == GameMode.Domination && capturePointPrefab != null)
+                {
+                    for (int i = 0; i < map.capturePoints.Length; i++)
+                    {
+                        Transform t = map.capturePoints[i];
+                        if (t == null) continue;
+                        NetworkObject cp = Instantiate(capturePointPrefab, t.position, t.rotation);
+                        cp.GetComponent<CapturePoint>().ServerLabel = i;
+                        networkManager.ServerManager.Spawn(cp);
+                    }
+                }
+
+                if (SelectedMode == GameMode.SearchAndDestroy && bombSitePrefab != null)
+                {
+                    for (int i = 0; i < map.bombSites.Length; i++)
+                    {
+                        Transform t = map.bombSites[i];
+                        if (t == null) continue;
+                        NetworkObject bs = Instantiate(bombSitePrefab, t.position, t.rotation);
+                        bs.GetComponent<BombSite>().ServerSiteIndex = i;
+                        networkManager.ServerManager.Spawn(bs);
+                    }
                 }
             }
 
-            Debug.Log($"[IRON VECTOR] World spawned. Mode: {SelectedMode}");
+            Debug.Log($"[IRON VECTOR] Map '{SelectedMapScene}' started. Mode: {SelectedMode}");
         }
 
         void SpawnVehicle(int index)
         {
-            if (vehiclePrefab == null || index < 0 || index >= vehicleSpawns.Length || vehicleSpawns[index] == null) return;
-            Transform t = vehicleSpawns[index];
+            MapConfig map = MapConfig.Instance;
+            if (vehiclePrefab == null || map == null || index < 0 || index >= map.vehicleSpawns.Length || map.vehicleSpawns[index] == null) return;
+            Transform t = map.vehicleSpawns[index];
             NetworkObject nob = Instantiate(vehiclePrefab, t.position + Vector3.up * 0.6f, t.rotation);
             nob.GetComponent<VehicleController>().SpawnIndex = index;
             networkManager.ServerManager.Spawn(nob);
         }
 
-        /// <summary>Called by vehicles when they are destroyed/despawned on the server.</summary>
         public void OnVehicleRemoved(int index)
         {
             if (index < 0 || networkManager == null || !networkManager.IsServerStarted || !isActiveAndEnabled) return;
@@ -123,10 +173,13 @@ namespace IronVector
         void OnClientLoadedStartScenes(NetworkConnection conn, bool asServer)
         {
             if (!asServer || playerPrefab == null) return;
+            // Only spawn players once a gameplay map scene is active.
+            if (MapConfig.Instance == null) return;
 
-            int team = ChooseTeam();
+            bool ffa = SelectedMode == GameMode.FreeForAll;
+            int team = ffa ? Teams.None : ChooseTeam();
             Pose pose = SpawnManager.Instance != null
-                ? SpawnManager.Instance.GetSpawnPoint(team)
+                ? SpawnManager.Instance.GetSpawnPoint(team, ffa)
                 : new Pose(Vector3.up * 2f, Quaternion.identity);
 
             NetworkObject nob = Instantiate(playerPrefab, pose.position, pose.rotation);

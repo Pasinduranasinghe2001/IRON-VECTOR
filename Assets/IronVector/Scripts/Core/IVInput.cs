@@ -12,13 +12,11 @@ namespace IronVector
         Jump, Sprint, Crouch, CrouchAlt,
         Fire, Aim, Reload, Interact, Grenade,
         Weapon1, Weapon2,
-        Scoreboard, Pause
+        Scoreboard, Pause, ToggleHud
     }
 
     /// <summary>
-    /// Tiny input layer that works with BOTH the new Input System and the legacy Input Manager,
-    /// so the project compiles no matter which "Active Input Handling" is selected.
-    /// Later we can swap this for rebindable Input Actions without touching gameplay code.
+    /// Tiny input layer that works with BOTH the new Input System and the legacy Input Manager.
     /// </summary>
     public static class IVInput
     {
@@ -39,7 +37,6 @@ namespace IronVector
             }
         }
 
-        /// <summary>Mouse delta scaled so 1 unit ~ legacy "Mouse X" axis.</summary>
         public static Vector2 Look => GameplayEnabled ? RawLook : Vector2.zero;
         public static float Scroll => GameplayEnabled ? RawScroll : 0f;
 
@@ -77,6 +74,7 @@ namespace IronVector
                 case IVKey.Weapon2: return kb?.digit2Key;
                 case IVKey.Scoreboard: return kb?.tabKey;
                 case IVKey.Pause: return kb?.escapeKey;
+                case IVKey.ToggleHud: return kb?.hKey;
                 case IVKey.Fire: return mouse?.leftButton;
                 case IVKey.Aim: return mouse?.rightButton;
             }
@@ -112,6 +110,7 @@ namespace IronVector
                 case IVKey.Weapon2: return KeyCode.Alpha2;
                 case IVKey.Scoreboard: return KeyCode.Tab;
                 case IVKey.Pause: return KeyCode.Escape;
+                case IVKey.ToggleHud: return KeyCode.H;
                 case IVKey.Fire: return KeyCode.Mouse0;
                 case IVKey.Aim: return KeyCode.Mouse1;
             }
