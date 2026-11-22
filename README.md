@@ -21,7 +21,7 @@
   - **Domination (DOM)** — Capture & defend Zones **A / B / C** to 200 pts
   - **Free For All (FFA)** — Every Operator solo to 20 kills
 - **Playable Maps**
-  - **`AdminHall`** — COD4-style HQ interior & courtyard with grand atrium, 2nd-floor balconies & skybridge, glowing server room, executive offices, and exterior plaza
+  - **`AdminHall`** — 3-story (**`G` / `1F` / `2F`**) Administration Block inspired by the **Faculty of Engineering, University of Jaffna (Kilinochchi)** featuring cream stucco wings, terracotta sun-shading cornices, blue glazing bands, covered South columned portico, open central skylight atrium, twin stairwells, green campus lawns, and **2 working networked elevators** (**Middle Elevator** + **Corner Elevator**)
   - **`Outpost Vector` (`Arena`)** — Open 3-lane combined-arms compound with drivable **Recon Buggies**
 - **Standard Multiplayer Connection Hub (Same Network + Different Networks)**
   - **Same Wi-Fi / Hotspot / Wired LAN**: Automatic UDP discovery on port `47777` (zero IP typing — 1-click **JOIN**)
@@ -56,7 +56,7 @@
 | `R` | Reload |
 | `1` / `2` / `Scroll` | Switch Primary / Sidearm |
 | `G` | Throw Frag Grenade |
-| `F` | Hold to Plant/Defuse Bomb (S&D) or Enter/Exit Vehicle |
+| `F` | Call/Ride Elevator (`G`/`1F`/`2F`), Plant/Defuse Bomb (S&D), or Enter/Exit Vehicle |
 | `H` | Toggle HUD / UI On & Off |
 | `Tab` | Scoreboard |
 | `Esc` | Pause / Graphics & Loadout Settings / Disconnect |

@@ -413,6 +413,13 @@ namespace IronVector
                 GUI.Label(r, local.BombUser.PromptLabel, _boldCenter);
             }
 
+            if (local.ElevatorUser != null && !string.IsNullOrEmpty(local.ElevatorUser.PromptLabel))
+            {
+                Rect r = new Rect(Screen.width * 0.5f - 230f, Screen.height - 132f, 460f, 30f);
+                DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.82f));
+                GUI.Label(r, local.ElevatorUser.PromptLabel, _boldCenter);
+            }
+
             if (local.VehicleUser == null) return;
             string msg = null;
             if (local.VehicleUser.InVehicle)

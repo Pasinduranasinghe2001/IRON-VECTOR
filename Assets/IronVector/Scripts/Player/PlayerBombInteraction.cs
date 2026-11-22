@@ -38,8 +38,10 @@ namespace IronVector
             foreach (BombSite bs in BombSite.All)
             {
                 if (bs == null) continue;
-                float d = Vector3.Distance(transform.position, bs.transform.position);
-                if (d > bs.siteRadius) continue;
+                Vector3 delta = transform.position - bs.transform.position;
+                if (Mathf.Abs(delta.y) > 2.8f) continue;
+                delta.y = 0f;
+                if (delta.magnitude > bs.siteRadius) continue;
 
                 if (isAttacker && mm.BombStatus.Value == BombState.Unplanted)
                 {
@@ -83,7 +85,7 @@ namespace IronVector
             if (_id == null || !_id.Health.IsAlive || _id.Team.Value != Teams.Alpha) return;
             foreach (BombSite bs in BombSite.All)
             {
-                if (bs != null && bs.SiteIndex.Value == siteIndex && Vector3.Distance(transform.position, bs.transform.position) <= bs.siteRadius + 1.5f)
+                if (bs != null && bs.SiteIndex.Value == siteIndex && Mathf.Abs(transform.position.y - bs.transform.position.y) <= 3.5f && Vector3.Distance(transform.position, bs.transform.position) <= bs.siteRadius + 2.0f)
                 {
                     MatchManager.Instance?.ServerBombPlanted(siteIndex, _id);
                     return;
@@ -97,7 +99,7 @@ namespace IronVector
             if (_id == null || !_id.Health.IsAlive || _id.Team.Value != Teams.Bravo) return;
             foreach (BombSite bs in BombSite.All)
             {
-                if (bs != null && bs.SiteIndex.Value == siteIndex && bs.IsPlantedHere.Value && Vector3.Distance(transform.position, bs.transform.position) <= bs.siteRadius + 1.5f)
+                if (bs != null && bs.SiteIndex.Value == siteIndex && bs.IsPlantedHere.Value && Mathf.Abs(transform.position.y - bs.transform.position.y) <= 3.5f && Vector3.Distance(transform.position, bs.transform.position) <= bs.siteRadius + 2.0f)
                 {
                     MatchManager.Instance?.ServerBombDefused(_id);
                     return;

@@ -88,6 +88,18 @@ namespace IronVector
             }
 
             float dt = Time.deltaTime;
+
+            // Carry player smoothly when standing inside a moving NetworkElevator cab.
+            if (Physics.Raycast(transform.position + Vector3.up * 0.25f, Vector3.down, out RaycastHit elHit, 0.55f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                NetworkElevator el = elHit.collider.GetComponentInParent<NetworkElevator>();
+                if (el != null && el.FrameDelta.sqrMagnitude > 0.000001f)
+                {
+                    _cc.Move(el.FrameDelta);
+                    if (_verticalVelocity < 0f) _verticalVelocity = -2f;
+                }
+            }
+
             Vector2 input = IVInput.Move;
             bool grounded = _cc.isGrounded;
             bool firing = IVInput.Held(IVKey.Fire);

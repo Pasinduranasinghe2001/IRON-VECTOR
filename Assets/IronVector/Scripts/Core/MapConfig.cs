@@ -17,6 +17,7 @@ namespace IronVector
         public Transform[] vehicleSpawns = new Transform[0];
         public Transform[] capturePoints = new Transform[0];
         public Transform[] bombSites = new Transform[0];
+        public Transform[] elevatorSpawns = new Transform[0];
 
         void Awake()
         {

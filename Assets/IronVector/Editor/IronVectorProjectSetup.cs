@@ -85,14 +85,15 @@ namespace IronVector.Editor
             NetworkObject matchManagerPrefab = CreateMatchManagerPrefab();
             NetworkObject capturePointPrefab = CreateCapturePointPrefab();
             NetworkObject bombSitePrefab = CreateBombSitePrefab();
+            NetworkObject elevatorPrefab = CreateElevatorPrefab();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             EditorApplication.ExecuteMenuItem("Tools/Fish-Networking/Utility/Refresh Default Prefabs");
-            PrefabObjects spawnables = EnsureDefaultPrefabObjects(playerPrefab, buggyPrefab, matchManagerPrefab, capturePointPrefab, bombSitePrefab);
+            PrefabObjects spawnables = EnsureDefaultPrefabObjects(playerPrefab, buggyPrefab, matchManagerPrefab, capturePointPrefab, bombSitePrefab, elevatorPrefab);
 
-            BuildMainMenuScene(playerPrefab, buggyPrefab, matchManagerPrefab, capturePointPrefab, bombSitePrefab, spawnables);
+            BuildMainMenuScene(playerPrefab, buggyPrefab, matchManagerPrefab, capturePointPrefab, bombSitePrefab, elevatorPrefab, spawnables);
             BuildAdminHallScene();
             BuildArenaScene();
 
@@ -212,6 +213,7 @@ namespace IronVector.Editor
             root.AddComponent<GrenadeThrower>();
             root.AddComponent<PlayerVehicleInteraction>();
             root.AddComponent<PlayerBombInteraction>();
+            root.AddComponent<PlayerElevatorInteraction>();
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             Object.DestroyImmediate(body.GetComponent<Collider>());
@@ -428,6 +430,42 @@ namespace IronVector.Editor
             return saved.GetComponent<NetworkObject>();
         }
 
+        static NetworkObject CreateElevatorPrefab()
+        {
+            Material matSteel = GetOrCreatePbrMat("Mat_ElevatorSteel", new Color(0.32f, 0.35f, 0.38f), 0.65f, 0.55f);
+            Material matFloor = GetOrCreateTileMat("Mat_AdminMarble", new Color(0.84f, 0.81f, 0.75f), new Color(0.72f, 0.69f, 0.63f), 0.55f, 4f);
+            Material matLight = GetOrCreatePbrMat("Mat_CeilingLight", Color.white, 0.9f, 0f, new Color(1.6f, 1.55f, 1.45f));
+
+            var root = new GameObject("Elevator");
+            root.AddComponent<NetworkObject>();
+            NetworkTransform nt = root.AddComponent<NetworkTransform>();
+            nt.SetSynchronizeScale(false);
+            SerializedObject ntSo = new SerializedObject(nt);
+            SerializedProperty clientAuth = ntSo.FindProperty("_clientAuthoritative");
+            if (clientAuth != null)
+            {
+                clientAuth.boolValue = false;
+                ntSo.ApplyModifiedPropertiesWithoutUndo();
+            }
+            EditorUtility.SetDirty(nt);
+
+            root.AddComponent<NetworkElevator>();
+
+            // Solid cab floor platform (top aligns cleanly to Y = 0.0)
+            Block(root.transform, "CabFloor", new Vector3(0f, -0.15f, 0f), new Vector3(3.3f, 0.30f, 3.3f), matFloor);
+            // Back & Side walls (South front Z = -1.65 stays open for boarding on G, 1F, 2F)
+            Block(root.transform, "CabBackWall", new Vector3(0f, 1.5f, 1.6f), new Vector3(3.3f, 3.0f, 0.14f), matSteel);
+            Block(root.transform, "CabLeftWall", new Vector3(-1.6f, 1.5f, 0f), new Vector3(0.14f, 3.0f, 3.3f), matSteel);
+            Block(root.transform, "CabRightWall", new Vector3(1.6f, 1.5f, 0f), new Vector3(0.14f, 3.0f, 3.3f), matSteel);
+            Block(root.transform, "CabRoof", new Vector3(0f, 3.05f, 0f), new Vector3(3.3f, 0.18f, 3.3f), matSteel);
+            BuildPart(root.transform, "CabLightPanel", PrimitiveType.Cube, new Vector3(0f, 2.92f, 0f), new Vector3(1.8f, 0.06f, 1.8f), matLight);
+            AddPointLight(root.transform, "CabLight", new Vector3(0f, 2.6f, 0f), new Color(1f, 0.96f, 0.88f), 9f, 2.2f);
+
+            GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabsDir + "/Elevator.prefab");
+            Object.DestroyImmediate(root);
+            return saved.GetComponent<NetworkObject>();
+        }
+
         static PrefabObjects EnsureDefaultPrefabObjects(params NetworkObject[] required)
         {
             string[] guids = AssetDatabase.FindAssets("t:DefaultPrefabObjects");
@@ -450,6 +488,7 @@ namespace IronVector.Editor
             NetworkObject matchManagerPrefab,
             NetworkObject capturePointPrefab,
             NetworkObject bombSitePrefab,
+            NetworkObject elevatorPrefab,
             PrefabObjects spawnables)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -501,6 +540,7 @@ namespace IronVector.Editor
             server.vehiclePrefab = buggyPrefab;
             server.capturePointPrefab = capturePointPrefab;
             server.bombSitePrefab = bombSitePrefab;
+            server.elevatorPrefab = elevatorPrefab;
 
             var discovery = netGo.AddComponent<LanDiscovery>();
             var menuUi = netGo.AddComponent<MainMenuUI>();
@@ -513,130 +553,156 @@ namespace IronVector.Editor
             EditorSceneManager.SaveScene(scene, MainMenuScenePath);
         }
 
-        /// <summary>Builds Map 1: AdminHall — COD4-style HQ Atrium, Two-Floor Balconies, Offices, Server Room &amp; Plaza.</summary>
+        /// <summary>
+        /// Builds Map 1: AdminHall — modeled after the 3-story Administration Block at
+        /// University of Jaffna Faculty of Engineering (Kilinochchi, Sri Lanka):
+        /// Ground Floor (G), 1st Floor (1F), 2nd Floor (2F), Middle &amp; Corner Elevators,
+        /// twin stairwells, central skylight atrium, grand portico and green campus grounds.
+        /// </summary>
         static void BuildAdminHallScene()
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            SetupEnvironment(new Color(0.68f, 0.77f, 0.88f), new Color(0.45f, 0.44f, 0.42f), 50f, -28f, 2.0f, "AdminHallVolumeProfile");
+            SetupEnvironment(new Color(0.68f, 0.79f, 0.92f), new Color(0.48f, 0.47f, 0.42f), 52f, -26f, 2.1f, "AdminHallVolumeProfile");
 
-            Material matMarble = GetOrCreateTileMat("Mat_AdminMarble", new Color(0.72f, 0.71f, 0.68f), new Color(0.58f, 0.57f, 0.54f), 0.58f, 26f);
-            Material matConcrete = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.56f, 0.55f, 0.52f), new Color(0.47f, 0.46f, 0.44f), 0.14f, 18f);
-            Material matPlaster = GetOrCreatePbrMat("Mat_AdminWall", new Color(0.76f, 0.74f, 0.70f), 0.18f);
-            Material matWood = GetOrCreateTileMat("Mat_AdminWood", new Color(0.42f, 0.25f, 0.14f), new Color(0.32f, 0.18f, 0.10f), 0.42f, 8f);
-            Material matSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.28f, 0.31f, 0.35f), 0.55f, 0.45f);
-            Material matServerGlow = GetOrCreatePbrMat("Mat_ServerRack", new Color(0.10f, 0.13f, 0.18f), 0.5f, 0.4f, new Color(0.10f, 0.45f, 0.90f));
+            // Authentic Sri Lankan University Campus Palette
+            Material matCreamWall = GetOrCreatePbrMat("Mat_AdminCreamWall", new Color(0.90f, 0.87f, 0.80f), 0.16f);
+            Material matTerracotta = GetOrCreatePbrMat("Mat_AdminTerracotta", new Color(0.62f, 0.28f, 0.18f), 0.22f);
+            Material matGraniteFloor = GetOrCreateTileMat("Mat_AdminMarble", new Color(0.84f, 0.80f, 0.74f), new Color(0.70f, 0.67f, 0.61f), 0.56f, 22f);
+            Material matTeakWood = GetOrCreateTileMat("Mat_AdminWood", new Color(0.40f, 0.23f, 0.12f), new Color(0.30f, 0.16f, 0.08f), 0.42f, 8f);
+            Material matSlateSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.24f, 0.28f, 0.32f), 0.55f, 0.45f);
+            Material matBlueGlass = GetOrCreatePbrMat("Mat_AdminGlass", new Color(0.16f, 0.34f, 0.48f), 0.88f, 0.25f);
+            Material matLawn = GetOrCreateTileMat("Mat_CampusLawn", new Color(0.28f, 0.44f, 0.22f), new Color(0.24f, 0.39f, 0.19f), 0.08f, 34f);
+            Material matDriveway = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.56f, 0.54f, 0.50f), new Color(0.46f, 0.45f, 0.42f), 0.14f, 20f);
+            Material matServerGlow = GetOrCreatePbrMat("Mat_ServerRack", new Color(0.10f, 0.13f, 0.18f), 0.5f, 0.4f, new Color(0.12f, 0.50f, 0.95f));
             Material matCeilingLight = GetOrCreatePbrMat("Mat_CeilingLight", Color.white, 0.9f, 0f, new Color(1.6f, 1.55f, 1.45f));
-            Material matAlphaTrim = GetOrCreatePbrMat("Mat_AlphaTrim", Teams.TeamColor(Teams.Alpha), 0.35f);
-            Material matBravoTrim = GetOrCreatePbrMat("Mat_BravoTrim", Teams.TeamColor(Teams.Bravo), 0.35f);
 
-            var root = new GameObject("Map_AdminHall");
+            var root = new GameObject("Map_AdminHall_Kilinochchi");
 
-            // Main Building Slab (96 x 76) & Exterior Courtyard
-            Block(root.transform, "ExteriorGround", new Vector3(0f, -0.55f, 0f), new Vector3(110f, 1f, 92f), matConcrete);
-            Block(root.transform, "HallFloor", new Vector3(0f, 0f, 0f), new Vector3(78f, 0.15f, 52f), matMarble);
+            // 1. Campus Grounds, Driveway & Perimeter
+            Block(root.transform, "CampusLawn", new Vector3(0f, -0.65f, 0f), new Vector3(132f, 1f, 114f), matLawn);
+            BoxBounds(root.transform, "MainDriveway", -46f, 46f, -0.25f, 0.0f, -44f, -22f, matDriveway);
+            BoxBounds(root.transform, "SidePaving_W", -48f, -36f, -0.25f, 0.0f, -22f, 24f, matDriveway);
+            BoxBounds(root.transform, "SidePaving_E", 36f, 48f, -0.25f, 0.0f, -22f, 24f, matDriveway);
+            BoxBounds(root.transform, "RearPaving", -48f, 48f, -0.25f, 0.0f, 22f, 30f, matDriveway);
 
-            // Outer Perimeter Bounds (Courtyard Fence Walls)
-            Block(root.transform, "Bound_N", new Vector3(0f, 4f, 44f), new Vector3(110f, 8f, 2f), matConcrete);
-            Block(root.transform, "Bound_S", new Vector3(0f, 4f, -44f), new Vector3(110f, 8f, 2f), matConcrete);
-            Block(root.transform, "Bound_W", new Vector3(-54f, 4f, 0f), new Vector3(2f, 8f, 90f), matConcrete);
-            Block(root.transform, "Bound_E", new Vector3(54f, 4f, 0f), new Vector3(2f, 8f, 90f), matConcrete);
+            // Campus Boundary Walls
+            Block(root.transform, "Bound_N", new Vector3(0f, 3.5f, 48f), new Vector3(128f, 7f, 2f), matCreamWall);
+            Block(root.transform, "Bound_S", new Vector3(0f, 3.5f, -52f), new Vector3(128f, 7f, 2f), matCreamWall);
+            Block(root.transform, "Bound_W", new Vector3(-63f, 3.5f, -2f), new Vector3(2f, 7f, 102f), matCreamWall);
+            Block(root.transform, "Bound_E", new Vector3(63f, 3.5f, -2f), new Vector3(2f, 7f, 102f), matCreamWall);
 
-            // Building Exterior Walls with Wide Entryways (South Courtyard Entrance + Side Corridors)
-            Block(root.transform, "Bldg_BackWall", new Vector3(0f, 4.5f, 26f), new Vector3(78f, 9f, 1.2f), matPlaster);
-            Block(root.transform, "Bldg_FrontWall_W", new Vector3(-24f, 4.5f, -26f), new Vector3(30f, 9f, 1.2f), matPlaster);
-            Block(root.transform, "Bldg_FrontWall_E", new Vector3(24f, 4.5f, -26f), new Vector3(30f, 9f, 1.2f), matPlaster);
-            Block(root.transform, "Bldg_FrontLintel", new Vector3(0f, 7.2f, -26f), new Vector3(18f, 3.6f, 1.2f), matPlaster);
-            Block(root.transform, "Bldg_SideWall_W_N", new Vector3(-39f, 4.5f, 14f), new Vector3(1.2f, 9f, 24f), matPlaster);
-            Block(root.transform, "Bldg_SideWall_W_S", new Vector3(-39f, 4.5f, -14f), new Vector3(1.2f, 9f, 24f), matPlaster);
-            Block(root.transform, "Bldg_SideWall_E_N", new Vector3(39f, 4.5f, 14f), new Vector3(1.2f, 9f, 24f), matPlaster);
-            Block(root.transform, "Bldg_SideWall_E_S", new Vector3(39f, 4.5f, -14f), new Vector3(1.2f, 9f, 24f), matPlaster);
+            // 2. Ground Floor Main Slab (X: -36..+36, Z: -22..+22, top Y=0.0)
+            BoxBounds(root.transform, "GroundFloor_Slab", -36f, 36f, -0.25f, 0.0f, -22f, 22f, matGraniteFloor);
 
-            // Skylight Roof Beams (Leaves central sun atrium open for dramatic directional shadows)
-            Block(root.transform, "Roof_W", new Vector3(-24f, 9.2f, 0f), new Vector3(30f, 0.5f, 54f), matSteel);
-            Block(root.transform, "Roof_E", new Vector3(24f, 9.2f, 0f), new Vector3(30f, 0.5f, 54f), matSteel);
-            for (int z = -20; z <= 20; z += 10)
+            // 3. 1st Floor (Y=3.9..4.2) & 2nd Floor (Y=8.1..8.4) Slabs with Clean Cutouts for Atrium, 2 Elevators, & 2 Stairwells
+            BuildUpperFloorSlab(root.transform, "1F", 3.9f, 4.2f, matGraniteFloor);
+            BuildUpperFloorSlab(root.transform, "2F", 8.1f, 8.4f, matGraniteFloor);
+
+            // 4. Grand South Entrance Portico & Columns (Kilinochchi Admin Front Facade)
+            BoxBounds(root.transform, "PorticoRoof_2F", -11f, 11f, 8.1f, 8.6f, -29f, -22f, matCreamWall);
+            BoxBounds(root.transform, "PorticoTerracotta", -11.4f, 11.4f, 8.6f, 9.2f, -29.4f, -22f, matTerracotta);
+            for (float px = -10f; px <= 10f; px += 5f)
+                Block(root.transform, "PorticoPillar_" + px, new Vector3(px, 4.3f, -28.2f), new Vector3(0.9f, 8.6f, 0.9f), matCreamWall);
+
+            // 5. Roof Canopy, Terracotta Overhangs & Central Skylight Atrium (Y=12.6)
+            BoxBounds(root.transform, "Roof_W", -37f, -8f, 12.4f, 12.8f, -23f, 23f, matCreamWall);
+            BoxBounds(root.transform, "Roof_E", 8f, 37f, 12.4f, 12.8f, -23f, 23f, matCreamWall);
+            BoxBounds(root.transform, "Roof_S", -8f, 8f, 12.4f, 12.8f, -23f, -7f, matCreamWall);
+            BoxBounds(root.transform, "Roof_N", -8f, 8f, 12.4f, 12.8f, 5f, 23f, matCreamWall);
+            BoxBounds(root.transform, "Roof_Terracotta_F", -37.5f, 37.5f, 12.7f, 13.4f, -23.5f, -22.5f, matTerracotta);
+            BoxBounds(root.transform, "Roof_Terracotta_B", -37.5f, 37.5f, 12.7f, 13.4f, 22.5f, 23.5f, matTerracotta);
+            for (float z = -6f; z <= 4f; z += 2.5f)
+                Block(root.transform, "AtriumSkylightBeam_" + z, new Vector3(0f, 12.6f, z), new Vector3(16.4f, 0.35f, 0.45f), matSlateSteel);
+
+            // 6. Exterior Facade Walls, Open Portals, Tropical Louvers & Blue Sun-Control Glass Bands
+            BuildExteriorFacade(root.transform, matCreamWall, matTerracotta, matBlueGlass, matSlateSteel);
+
+            // 7. Twin Elevator Shafts (Middle Elevator at X=0,Z=+9.4 & Corner Elevator at X=+31.8,Z=+17.8)
+            BuildElevatorShaft(root.transform, "Shaft_Middle", 0f, 9.4f, matSlateSteel, matCreamWall, matBlueGlass);
+            BuildElevatorShaft(root.transform, "Shaft_Corner", 31.8f, 17.8f, matSlateSteel, matCreamWall, matBlueGlass);
+
+            // 8. Two Multi-Story Stairwells (GF -> 1F -> 2F)
+            BuildStairwell(root.transform, "WestStairwell", -30f, -5f, matSlateSteel, matTeakWood, matGraniteFloor);
+            BuildStairwell(root.transform, "EastStairwell", 30f, -7f, matSlateSteel, matTeakWood, matGraniteFloor);
+
+            // 9. Atrium Railings around the Open Lightwell (X:-8..+8, Z:-7..+5) on 1F & 2F
+            BuildAtriumRailings(root.transform, 4.2f, "1F", matTeakWood, matSlateSteel);
+            BuildAtriumRailings(root.transform, 8.4f, "2F", matTeakWood, matSlateSteel);
+
+            // 10. Interior Offices, Counters, Server Room, Boardroom & Exterior Campus Props
+            // Ground Floor Reception & AR Counters + Server Room
+            Block(root.transform, "GF_ReceptionDesk", new Vector3(0f, 0.6f, -15f), new Vector3(8.5f, 1.2f, 1.8f), matTeakWood);
+            Block(root.transform, "GF_ARCounter_W", new Vector3(-20f, 0.55f, 10f), new Vector3(6.5f, 1.1f, 1.5f), matTeakWood);
+            Block(root.transform, "GF_ServerRack1", new Vector3(-22f, 1.3f, 18f), new Vector3(1.5f, 2.6f, 3.2f), matServerGlow);
+            Block(root.transform, "GF_ServerRack2", new Vector3(-18f, 1.3f, 18f), new Vector3(1.5f, 2.6f, 3.2f), matServerGlow);
+            BoxBounds(root.transform, "GF_OfficePart_E", 12f, 24f, 0f, 3.2f, 6f, 6.5f, matCreamWall);
+
+            // 1st Floor Offices & Exam Wing
+            BoxBounds(root.transform, "1F_OfficeWall_W", -24f, -12f, 4.2f, 7.6f, 2f, 2.5f, matCreamWall);
+            Block(root.transform, "1F_ExamDesk_W", new Vector3(-18f, 4.7f, 10f), new Vector3(5.5f, 1.0f, 2.0f), matTeakWood);
+            Block(root.transform, "1F_ConfTable_E", new Vector3(18f, 4.7f, 8f), new Vector3(7.0f, 1.0f, 2.4f), matTeakWood);
+            BoxBounds(root.transform, "1F_ConfPartition_E", 12f, 23f, 4.2f, 7.6f, -4f, -3.5f, matCreamWall);
+
+            // 2nd Floor Dean's Office & Faculty Boardroom
+            BoxBounds(root.transform, "2F_DeanWall_E", 11f, 23f, 8.4f, 11.8f, 2f, 2.5f, matCreamWall);
+            Block(root.transform, "2F_BoardroomTable", new Vector3(18f, 8.95f, 10f), new Vector3(8.5f, 1.1f, 3.0f), matTeakWood);
+            Block(root.transform, "2F_SeminarDesk_W", new Vector3(-18f, 8.9f, 9f), new Vector3(6.0f, 1.0f, 2.2f), matTeakWood);
+            BoxBounds(root.transform, "2F_LecturePartition_W", -24f, -12f, 8.4f, 11.8f, 0f, 0.5f, matCreamWall);
+
+            // Exterior Campus Courtyard Planters & Benches
+            Block(root.transform, "ForecourtPlanter_W", new Vector3(-22f, 0.65f, -34f), new Vector3(6f, 1.3f, 2.4f), matDriveway);
+            Block(root.transform, "ForecourtPlanter_E", new Vector3(22f, 0.65f, -34f), new Vector3(6f, 1.3f, 2.4f), matDriveway);
+            Block(root.transform, "CourtyardMonument", new Vector3(0f, 0.7f, -37f), new Vector3(5.5f, 1.4f, 4.5f), matTerracotta);
+
+            // Interior Lighting across GF, 1F, 2F
+            for (int f = 0; f < 3; f++)
             {
-                Block(root.transform, "SkylightBeam_" + z, new Vector3(0f, 9.1f, z), new Vector3(18f, 0.5f, 0.8f), matSteel);
-                BuildPart(root.transform, "AtriumLamp_" + z, PrimitiveType.Cube, new Vector3(-20f, 8.9f, z), new Vector3(3.2f, 0.12f, 0.7f), matCeilingLight);
-                BuildPart(root.transform, "AtriumLampR_" + z, PrimitiveType.Cube, new Vector3(20f, 8.9f, z), new Vector3(3.2f, 0.12f, 0.7f), matCeilingLight);
+                float ly = f * 4.2f + 3.4f;
+                AddPointLight(root.transform, $"Light_F{f}_Atrium", new Vector3(0f, ly, -14f), new Color(1f, 0.96f, 0.88f), 26f, 2.8f);
+                AddPointLight(root.transform, $"Light_F{f}_West", new Vector3(-20f, ly, 4f), new Color(0.95f, 0.97f, 1.0f), 24f, 2.5f);
+                AddPointLight(root.transform, $"Light_F{f}_East", new Vector3(20f, ly, 4f), new Color(1f, 0.95f, 0.88f), 24f, 2.5f);
+                BuildPart(root.transform, $"LampPanel_F{f}_W", PrimitiveType.Cube, new Vector3(-20f, ly + 0.35f, 4f), new Vector3(3.5f, 0.1f, 0.8f), matCeilingLight);
+                BuildPart(root.transform, $"LampPanel_F{f}_E", PrimitiveType.Cube, new Vector3(20f, ly + 0.35f, 4f), new Vector3(3.5f, 0.1f, 0.8f), matCeilingLight);
             }
 
-            // Grand Atrium Reception Desk + 4 Marble Pillars
-            Block(root.transform, "ReceptionDesk", new Vector3(0f, 0.65f, 4f), new Vector3(9f, 1.3f, 2.2f), matWood);
-            Block(root.transform, "AtriumPillar_NW", new Vector3(-10f, 4.5f, 12f), new Vector3(1.8f, 9f, 1.8f), matMarble);
-            Block(root.transform, "AtriumPillar_NE", new Vector3(10f, 4.5f, 12f), new Vector3(1.8f, 9f, 1.8f), matMarble);
-            Block(root.transform, "AtriumPillar_SW", new Vector3(-10f, 4.5f, -12f), new Vector3(1.8f, 9f, 1.8f), matMarble);
-            Block(root.transform, "AtriumPillar_SE", new Vector3(10f, 4.5f, -12f), new Vector3(1.8f, 9f, 1.8f), matMarble);
-
-            // Second-Floor Balconies + Crosswalk Bridge + Sloped Stairs
-            Block(root.transform, "Balcony_W", new Vector3(-25f, 4.0f, 0f), new Vector3(26f, 0.5f, 20f), matMarble);
-            Block(root.transform, "Balcony_E", new Vector3(25f, 4.0f, 0f), new Vector3(26f, 0.5f, 20f), matMarble);
-            Block(root.transform, "BalconyRail_W", new Vector3(-12.2f, 4.75f, 0f), new Vector3(0.35f, 1.0f, 20f), matWood);
-            Block(root.transform, "BalconyRail_E", new Vector3(12.2f, 4.75f, 0f), new Vector3(0.35f, 1.0f, 20f), matWood);
-            Block(root.transform, "SkyBridge", new Vector3(0f, 4.0f, 16f), new Vector3(26f, 0.5f, 4.5f), matSteel);
-            Block(root.transform, "BridgeRail_N", new Vector3(0f, 4.75f, 18.1f), new Vector3(24f, 1.0f, 0.3f), matSteel);
-            Block(root.transform, "BridgeRail_S", new Vector3(0f, 4.75f, 13.9f), new Vector3(24f, 1.0f, 0.3f), matSteel);
-
-            // Ramps up to Balconies (Left, Right, Rear)
-            Ramp(root.transform, "StairRamp_W", new Vector3(-19f, 2.0f, 16f), new Vector3(4.2f, 0.45f, 13f), new Vector3(18f, 0f, 0f), matSteel);
-            Ramp(root.transform, "StairRamp_E", new Vector3(19f, 2.0f, 16f), new Vector3(4.2f, 0.45f, 13f), new Vector3(18f, 0f, 0f), matSteel);
-
-            // West Wing: Executive Offices & Glowing Server Room (Bomb Site A)
-            Block(root.transform, "OfficeDiv_W1", new Vector3(-24f, 1.8f, 4f), new Vector3(12f, 3.6f, 0.6f), matPlaster);
-            Block(root.transform, "OfficeDesk_W", new Vector3(-28f, 0.5f, -4f), new Vector3(4.5f, 1.0f, 1.6f), matWood);
-            Block(root.transform, "ServerRack_1", new Vector3(-31f, 1.4f, 16f), new Vector3(1.6f, 2.8f, 3.5f), matServerGlow);
-            Block(root.transform, "ServerRack_2", new Vector3(-26f, 1.4f, 16f), new Vector3(1.6f, 2.8f, 3.5f), matServerGlow);
-            Block(root.transform, "AlphaSign", new Vector3(-37.8f, 3.2f, 0f), new Vector3(0.4f, 0.6f, 12f), matAlphaTrim);
-
-            // East Wing: Command Conference Hall (Bomb Site B)
-            Block(root.transform, "ConfTable", new Vector3(26f, 0.55f, 0f), new Vector3(7.5f, 1.1f, 2.6f), matWood);
-            Block(root.transform, "ConfWall_N", new Vector3(24f, 1.8f, -11f), new Vector3(12f, 3.6f, 0.6f), matPlaster);
-            Block(root.transform, "CommandConsole", new Vector3(31f, 1.2f, -18f), new Vector3(4f, 2.4f, 1.4f), matServerGlow);
-            Block(root.transform, "BravoSign", new Vector3(37.8f, 3.2f, 0f), new Vector3(0.4f, 0.6f, 12f), matBravoTrim);
-
-            // South Courtyard Plaza Cover (AR / Sniper Flank Route)
-            Block(root.transform, "PlazaPlanter_W", new Vector3(-16f, 0.7f, -34f), new Vector3(5f, 1.4f, 2.2f), matConcrete);
-            Block(root.transform, "PlazaPlanter_E", new Vector3(16f, 0.7f, -34f), new Vector3(5f, 1.4f, 2.2f), matConcrete);
-            Block(root.transform, "PlazaFountain", new Vector3(0f, 0.65f, -35f), new Vector3(6f, 1.3f, 4f), matMarble);
-
-            // Interior Warm Architectural Spotlights
-            AddPointLight(root.transform, "Light_Atrium", new Vector3(0f, 7.5f, 0f), new Color(1f, 0.95f, 0.86f), 28f, 3.2f);
-            AddPointLight(root.transform, "Light_WestWing", new Vector3(-26f, 3.2f, 0f), new Color(0.82f, 0.90f, 1.0f), 22f, 2.4f);
-            AddPointLight(root.transform, "Light_EastWing", new Vector3(26f, 3.2f, 0f), new Color(1.0f, 0.92f, 0.80f), 22f, 2.4f);
-
-            // Map Config & Spawns
+            // Map Config, Spawns, Elevators & Multi-Floor Objectives
             var markers = new GameObject("MapMarkers");
             Transform[] alphaSpawns =
             {
-                Marker(markers.transform, "AlphaSpawn_1", new Vector3(-46f, 0.1f, -4f), Quaternion.Euler(0, 90, 0)),
-                Marker(markers.transform, "AlphaSpawn_2", new Vector3(-46f, 0.1f, 4f), Quaternion.Euler(0, 90, 0)),
-                Marker(markers.transform, "AlphaSpawn_3", new Vector3(-45f, 0.1f, -18f), Quaternion.Euler(0, 75, 0)),
-                Marker(markers.transform, "AlphaSpawn_4", new Vector3(-45f, 0.1f, 18f), Quaternion.Euler(0, 105, 0)),
-                Marker(markers.transform, "AlphaSpawn_5", new Vector3(-32f, 0.2f, -18f), Quaternion.Euler(0, 60, 0))
+                Marker(markers.transform, "AlphaSpawn_GF_West", new Vector3(-43f, 0.1f, -6f), Quaternion.Euler(0, 90, 0)),
+                Marker(markers.transform, "AlphaSpawn_GF_Plaza", new Vector3(-42f, 0.1f, -26f), Quaternion.Euler(0, 45, 0)),
+                Marker(markers.transform, "AlphaSpawn_GF_RearW", new Vector3(-42f, 0.1f, 18f), Quaternion.Euler(0, 120, 0)),
+                Marker(markers.transform, "AlphaSpawn_1F_West", new Vector3(-20f, 4.3f, -15f), Quaternion.Euler(0, 20, 0)),
+                Marker(markers.transform, "AlphaSpawn_2F_West", new Vector3(-20f, 8.5f, 15f), Quaternion.Euler(0, 145, 0))
             };
             Transform[] bravoSpawns =
             {
-                Marker(markers.transform, "BravoSpawn_1", new Vector3(46f, 0.1f, -4f), Quaternion.Euler(0, -90, 0)),
-                Marker(markers.transform, "BravoSpawn_2", new Vector3(46f, 0.1f, 4f), Quaternion.Euler(0, -90, 0)),
-                Marker(markers.transform, "BravoSpawn_3", new Vector3(45f, 0.1f, -18f), Quaternion.Euler(0, -75, 0)),
-                Marker(markers.transform, "BravoSpawn_4", new Vector3(45f, 0.1f, 18f), Quaternion.Euler(0, -105, 0)),
-                Marker(markers.transform, "BravoSpawn_5", new Vector3(32f, 0.2f, -18f), Quaternion.Euler(0, -60, 0))
+                Marker(markers.transform, "BravoSpawn_GF_East", new Vector3(43f, 0.1f, -6f), Quaternion.Euler(0, -90, 0)),
+                Marker(markers.transform, "BravoSpawn_GF_Plaza", new Vector3(42f, 0.1f, -26f), Quaternion.Euler(0, -45, 0)),
+                Marker(markers.transform, "BravoSpawn_GF_RearE", new Vector3(42f, 0.1f, 18f), Quaternion.Euler(0, -120, 0)),
+                Marker(markers.transform, "BravoSpawn_1F_East", new Vector3(20f, 4.3f, -15f), Quaternion.Euler(0, -20, 0)),
+                Marker(markers.transform, "BravoSpawn_2F_East", new Vector3(20f, 8.5f, 15f), Quaternion.Euler(0, -145, 0))
             };
             Transform[] vehicleSpawns =
             {
-                Marker(markers.transform, "BuggySpawn_PlazaW", new Vector3(-36f, 0.1f, -35f), Quaternion.Euler(0, 90, 0)),
-                Marker(markers.transform, "BuggySpawn_PlazaE", new Vector3(36f, 0.1f, -35f), Quaternion.Euler(0, -90, 0))
+                Marker(markers.transform, "BuggySpawn_WestRoad", new Vector3(-34f, 0.1f, -38f), Quaternion.Euler(0, 90, 0)),
+                Marker(markers.transform, "BuggySpawn_EastRoad", new Vector3(34f, 0.1f, -38f), Quaternion.Euler(0, -90, 0))
             };
             Transform[] captureSpawns =
             {
-                Marker(markers.transform, "CapturePoint_A", new Vector3(-26f, 0.1f, -4f), Quaternion.identity),
-                Marker(markers.transform, "CapturePoint_B", new Vector3(0f, 0.1f, -6f), Quaternion.identity),
-                Marker(markers.transform, "CapturePoint_C", new Vector3(26f, 0.1f, -4f), Quaternion.identity)
+                Marker(markers.transform, "CapturePoint_A_1F", new Vector3(-18f, 4.25f, 10f), Quaternion.identity),
+                Marker(markers.transform, "CapturePoint_B_GF", new Vector3(0f, 0.05f, -1f), Quaternion.identity),
+                Marker(markers.transform, "CapturePoint_C_2F", new Vector3(18f, 8.45f, 10f), Quaternion.identity)
             };
             Transform[] bombSpawns =
             {
-                Marker(markers.transform, "BombSite_A", new Vector3(-26f, 0.1f, 11f), Quaternion.identity),
-                Marker(markers.transform, "BombSite_B", new Vector3(26f, 0.1f, 9f), Quaternion.identity)
+                Marker(markers.transform, "BombSite_A_1F", new Vector3(-18f, 4.25f, 12f), Quaternion.identity),
+                Marker(markers.transform, "BombSite_B_2F", new Vector3(18f, 8.45f, 10f), Quaternion.identity)
+            };
+            Transform[] elevatorSpawns =
+            {
+                Marker(markers.transform, "Elevator_Middle", new Vector3(0f, 0f, 9.4f), Quaternion.identity),
+                Marker(markers.transform, "Elevator_Corner", new Vector3(31.8f, 0f, 17.8f), Quaternion.identity)
             };
 
             var spawnMgr = markers.AddComponent<SpawnManager>();
@@ -648,8 +714,147 @@ namespace IronVector.Editor
             cfg.vehicleSpawns = vehicleSpawns;
             cfg.capturePoints = captureSpawns;
             cfg.bombSites = bombSpawns;
+            cfg.elevatorSpawns = elevatorSpawns;
 
             EditorSceneManager.SaveScene(scene, AdminHallScenePath);
+        }
+
+        static void BuildUpperFloorSlab(Transform parent, string tag, float y0, float y1, Material mat)
+        {
+            // Zone A & G: outer side walkways
+            BoxBounds(parent, tag + "_OuterW", -36f, -34f, y0, y1, -22f, 22f, mat);
+            BoxBounds(parent, tag + "_OuterE", 34f, 36f, y0, y1, -22f, 22f, mat);
+
+            // Zone B: West stair band (-34..-26) leaving stair opening (-14..+4) open
+            BoxBounds(parent, tag + "_StairLandingW_S", -34f, -26f, y0, y1, -22f, -14f, mat);
+            BoxBounds(parent, tag + "_StairLandingW_N", -34f, -26f, y0, y1, 4f, 22f, mat);
+
+            // Zone C & E: Full West & East wings (-26..-8 and +8..+26)
+            BoxBounds(parent, tag + "_WingW", -26f, -8f, y0, y1, -22f, 22f, mat);
+            BoxBounds(parent, tag + "_WingE", 8f, 26f, y0, y1, -22f, 22f, mat);
+
+            // Zone D: Central ring around Lightwell (-7..+5) and Middle Elevator shaft (-1.8..+1.8, +7.6..+11.2)
+            BoxBounds(parent, tag + "_AtriumS", -8f, 8f, y0, y1, -22f, -7f, mat);
+            BoxBounds(parent, tag + "_MidElevLanding", -8f, 8f, y0, y1, 5f, 7.6f, mat);
+            BoxBounds(parent, tag + "_MidShaftSideW", -8f, -1.8f, y0, y1, 7.6f, 11.2f, mat);
+            BoxBounds(parent, tag + "_MidShaftSideE", 1.8f, 8f, y0, y1, 7.6f, 11.2f, mat);
+            BoxBounds(parent, tag + "_AtriumN_Back", -8f, 8f, y0, y1, 11.2f, 22f, mat);
+
+            // Zone F: East stair band (+26..+34) leaving East stair (-16..+2) & Corner Elevator (+30..+33.6, +16..+19.6) open
+            BoxBounds(parent, tag + "_StairLandingE_S", 26f, 34f, y0, y1, -22f, -16f, mat);
+            BoxBounds(parent, tag + "_CornerElevLanding", 26f, 34f, y0, y1, 2f, 16f, mat);
+            BoxBounds(parent, tag + "_CornerShaftSideW", 26f, 30f, y0, y1, 16f, 19.6f, mat);
+            BoxBounds(parent, tag + "_CornerShaftSideE", 33.6f, 34f, y0, y1, 16f, 19.6f, mat);
+            BoxBounds(parent, tag + "_CornerBack", 26f, 34f, y0, y1, 19.6f, 22f, mat);
+        }
+
+        static void BuildExteriorFacade(Transform parent, Material cream, Material terracotta, Material glass, Material steel)
+        {
+            for (int f = 0; f < 3; f++)
+            {
+                float y0 = f * 4.2f;
+                float yTop = y0 + 3.9f;
+                string fn = $"F{f}";
+
+                // South Front Wall (with wide central open entrance portico X:-10..+10 on GF & windows/balconies on 1F/2F)
+                if (f == 0)
+                {
+                    BoxBounds(parent, fn + "_SouthWallW", -36f, -10f, y0, yTop, -22.4f, -21.8f, cream);
+                    BoxBounds(parent, fn + "_SouthWallE", 10f, 36f, y0, yTop, -22.4f, -21.8f, cream);
+                }
+                else
+                {
+                    // Parapet + Glass windows + Sunshade louver ledge across front facade
+                    BoxBounds(parent, fn + "_SouthParapetW", -36f, -10f, y0, y0 + 1.15f, -22.4f, -21.8f, cream);
+                    BoxBounds(parent, fn + "_SouthParapetE", 10f, 36f, y0, y0 + 1.15f, -22.4f, -21.8f, cream);
+                    BoxBounds(parent, fn + "_SouthLintelW", -36f, -10f, y0 + 3.1f, yTop, -22.4f, -21.8f, cream);
+                    BoxBounds(parent, fn + "_SouthLintelE", 10f, 36f, y0 + 3.1f, yTop, -22.4f, -21.8f, cream);
+                    BoxBounds(parent, fn + "_SunshadeS", -36.8f, 36.8f, y0 + 3.5f, y0 + 3.75f, -23.3f, -22.2f, terracotta);
+                    BoxBounds(parent, fn + "_PorticoBalcRail", -10f, 10f, y0, y0 + 1.05f, -22.2f, -21.9f, steel);
+                }
+
+                // North Rear Wall (with rear campus exit X:-4..+4 on GF)
+                if (f == 0)
+                {
+                    BoxBounds(parent, fn + "_NorthWallW", -36f, -4f, y0, yTop, 21.8f, 22.4f, cream);
+                    BoxBounds(parent, fn + "_NorthWallE", 4f, 36f, y0, yTop, 21.8f, 22.4f, cream);
+                }
+                else
+                {
+                    BoxBounds(parent, fn + "_NorthParapet", -36f, 36f, y0, y0 + 1.15f, 21.8f, 22.4f, cream);
+                    BoxBounds(parent, fn + "_NorthLintel", -36f, 36f, y0 + 3.1f, yTop, 21.8f, 22.4f, cream);
+                    BoxBounds(parent, fn + "_SunshadeN", -36.8f, 36.8f, y0 + 3.5f, y0 + 3.75f, 22.2f, 23.3f, terracotta);
+                }
+
+                // West & East Side Walls (open side verandas on GF Z:-5..+5, louvered overlooks on 1F/2F)
+                if (f == 0)
+                {
+                    BoxBounds(parent, fn + "_WestS", -36.4f, -35.8f, y0, yTop, -22f, -5f, cream);
+                    BoxBounds(parent, fn + "_WestN", -36.4f, -35.8f, y0, yTop, 5f, 22f, cream);
+                    BoxBounds(parent, fn + "_EastS", 35.8f, 36.4f, y0, yTop, -22f, -5f, cream);
+                    BoxBounds(parent, fn + "_EastN", 35.8f, 36.4f, y0, yTop, 5f, 22f, cream);
+                }
+                else
+                {
+                    BoxBounds(parent, fn + "_WestPara", -36.4f, -35.8f, y0, y0 + 1.15f, -22f, 22f, cream);
+                    BoxBounds(parent, fn + "_WestLint", -36.4f, -35.8f, y0 + 3.1f, yTop, -22f, 22f, cream);
+                    BoxBounds(parent, fn + "_EastPara", 35.8f, 36.4f, y0, y0 + 1.15f, -22f, 22f, cream);
+                    BoxBounds(parent, fn + "_EastLint", 35.8f, 36.4f, y0 + 3.1f, yTop, -22f, 22f, cream);
+                }
+            }
+
+            // Full-height architectural facade piers along South & North walls
+            for (float x = -36f; x <= 36f; x += 12f)
+            {
+                Block(parent, "FacadeCol_S_" + x, new Vector3(x, 6.2f, -22.2f), new Vector3(0.8f, 12.4f, 0.8f), cream);
+                Block(parent, "FacadeCol_N_" + x, new Vector3(x, 6.2f, 22.2f), new Vector3(0.8f, 12.4f, 0.8f), cream);
+            }
+            // Blue tinted decorative glass mullions along upper outer window strips
+            BoxBounds(parent, "GlassBand_1F_N", -34f, 34f, 5.35f, 7.25f, 22.0f, 22.15f, glass, collider: false);
+            BoxBounds(parent, "GlassBand_2F_N", -34f, 34f, 9.55f, 11.45f, 22.0f, 22.15f, glass, collider: false);
+        }
+
+        static void BuildElevatorShaft(Transform parent, string name, float cx, float cz, Material steel, Material wall, Material glass)
+        {
+            // Back & Side shaft enclosures (leaves South side Z = cz - 1.8 open across GF, 1F, 2F)
+            Block(parent, name + "_Back", new Vector3(cx, 6.3f, cz + 1.8f), new Vector3(3.8f, 12.6f, 0.25f), wall);
+            Block(parent, name + "_SideW", new Vector3(cx - 1.8f, 6.3f, cz), new Vector3(0.22f, 12.6f, 3.6f), glass);
+            Block(parent, name + "_SideE", new Vector3(cx + 1.8f, 6.3f, cz), new Vector3(0.22f, 12.6f, 3.6f), glass);
+            Block(parent, name + "_PillarSW", new Vector3(cx - 1.8f, 6.3f, cz - 1.75f), new Vector3(0.32f, 12.6f, 0.32f), steel);
+            Block(parent, name + "_PillarSE", new Vector3(cx + 1.8f, 6.3f, cz - 1.75f), new Vector3(0.32f, 12.6f, 0.32f), steel);
+        }
+
+        static void BuildStairwell(Transform parent, string name, float cx, float cz, Material steel, Material wood, Material floor)
+        {
+            // Outer lane (cx - 1.8): GF (Y=0) at Z=cz-8.5 rises North to 1F (Y=4.2) at Z=cz+8.5
+            Ramp(parent, name + "_Flight1_GF_1F", new Vector3(cx - 1.9f, 2.1f, cz), new Vector3(3.6f, 0.35f, 16.5f), new Vector3(-14.8f, 0f, 0f), steel);
+            // Inner lane (cx + 1.9): 1F (Y=4.2) at Z=cz+8.5 rises South to 2F (Y=8.4) at Z=cz-8.5
+            Ramp(parent, name + "_Flight2_1F_2F", new Vector3(cx + 1.9f, 6.3f, cz), new Vector3(3.6f, 0.35f, 16.5f), new Vector3(14.8f, 0f, 0f), steel);
+            // Divider handrail between flights
+            Block(parent, name + "_Divider", new Vector3(cx, 5.2f, cz), new Vector3(0.25f, 7.6f, 15.5f), wood);
+        }
+
+        static void BuildAtriumRailings(Transform parent, float yFloor, string tag, Material wood, Material steel)
+        {
+            float yMid = yFloor + 0.55f;
+            Block(parent, tag + "_AtriumRail_S", new Vector3(0f, yMid, -7.0f), new Vector3(16.0f, 1.05f, 0.28f), wood);
+            Block(parent, tag + "_AtriumRail_W", new Vector3(-8.0f, yMid, -1.0f), new Vector3(0.28f, 1.05f, 12.0f), wood);
+            Block(parent, tag + "_AtriumRail_E", new Vector3(8.0f, yMid, -1.0f), new Vector3(0.28f, 1.05f, 12.0f), wood);
+            Block(parent, tag + "_AtriumRail_NW", new Vector3(-4.9f, yMid, 5.0f), new Vector3(6.2f, 1.05f, 0.28f), steel);
+            Block(parent, tag + "_AtriumRail_NE", new Vector3(4.9f, yMid, 5.0f), new Vector3(6.2f, 1.05f, 0.28f), steel);
+        }
+
+        static GameObject BoxBounds(Transform parent, string name, float x0, float x1, float y0, float y1, float z0, float z1, Material mat, bool collider = true)
+        {
+            Vector3 center = new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, (z0 + z1) * 0.5f);
+            Vector3 size = new Vector3(Mathf.Abs(x1 - x0), Mathf.Abs(y1 - y0), Mathf.Abs(z1 - z0));
+            GameObject go = Block(parent, name, center, size, mat);
+            if (!collider)
+            {
+                Collider c = go.GetComponent<Collider>();
+                if (c != null) Object.DestroyImmediate(c);
+            }
+            return go;
         }
 
         /// <summary>Builds Map 2: Outpost Vector (Arena.unity) — Open 3-Lane Combined-Arms Compound.</summary>

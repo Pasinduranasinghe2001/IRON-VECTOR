@@ -31,6 +31,7 @@ namespace IronVector
         public GrenadeThrower Grenades { get; private set; }
         public PlayerVehicleInteraction VehicleUser { get; private set; }
         public PlayerBombInteraction BombUser { get; private set; }
+        public PlayerElevatorInteraction ElevatorUser { get; private set; }
 
         CharacterController _cc;
         Renderer[] _bodyRenderers;
@@ -45,6 +46,7 @@ namespace IronVector
             Grenades = GetComponent<GrenadeThrower>();
             VehicleUser = GetComponent<PlayerVehicleInteraction>();
             BombUser = GetComponent<PlayerBombInteraction>();
+            ElevatorUser = GetComponent<PlayerElevatorInteraction>();
             _cc = GetComponent<CharacterController>();
 
             _bodyRenderers = GetComponentsInChildren<Renderer>(true);

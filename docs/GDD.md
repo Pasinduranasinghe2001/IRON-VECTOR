@@ -44,5 +44,5 @@
 
 ## 5. Maps
 
-1. **`AdminHall`** (Flagship HQ Interior + Plaza): Two-tier marble atrium, flanking staircases & skybridge, server room (Site A), conference wing (Site B), and exterior fountain courtyard.
+1. **`AdminHall`** (Kilinochchi Faculty of Engineering–Inspired Admin Block): Three accessible stories (**Ground Floor `G`**, **1st Floor `1F`**, **2nd Floor `2F`**) with South columned portico, cream & terracotta louvered exterior, central skylight atrium, twin stairwells, campus lawns, multi-floor Domination / S&D objectives, and **2 working networked elevators** (**Middle** and **Corner**).
 2. **`Outpost Vector` (`Arena`)**: Open 3-lane combined-arms compound featuring drivable Recon Buggies, center warehouse deck, and South CQB cargo yard.

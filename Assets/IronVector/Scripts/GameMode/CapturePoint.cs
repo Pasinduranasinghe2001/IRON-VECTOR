@@ -79,6 +79,7 @@ namespace IronVector
             {
                 if (p == null || p.Health == null || !p.Health.IsAlive) continue;
                 Vector3 delta = p.transform.position - transform.position;
+                if (Mathf.Abs(delta.y) > 2.8f) continue;
                 delta.y = 0f;
                 if (delta.sqrMagnitude > captureRadius * captureRadius) continue;
 

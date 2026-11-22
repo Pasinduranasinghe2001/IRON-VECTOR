@@ -28,6 +28,7 @@ namespace IronVector
         public NetworkObject vehiclePrefab;
         public NetworkObject capturePointPrefab;
         public NetworkObject bombSitePrefab;
+        public NetworkObject elevatorPrefab;
 
         public float vehicleRespawnDelay = 20f;
 
@@ -141,6 +142,18 @@ namespace IronVector
                         NetworkObject bs = Instantiate(bombSitePrefab, t.position, t.rotation);
                         bs.GetComponent<BombSite>().ServerSiteIndex = i;
                         networkManager.ServerManager.Spawn(bs);
+                    }
+                }
+
+                if (elevatorPrefab != null)
+                {
+                    for (int i = 0; i < map.elevatorSpawns.Length; i++)
+                    {
+                        Transform t = map.elevatorSpawns[i];
+                        if (t == null) continue;
+                        NetworkObject el = Instantiate(elevatorPrefab, t.position, t.rotation);
+                        el.GetComponent<NetworkElevator>().ServerShaftIndex = i;
+                        networkManager.ServerManager.Spawn(el);
                     }
                 }
             }
