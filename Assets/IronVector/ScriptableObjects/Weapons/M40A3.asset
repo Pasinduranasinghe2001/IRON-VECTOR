@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de62422087824b748b7fa470f0c8668f, type: 3}
+  m_Name: M40A3
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
+  weaponName: M40A3
+  category: 2
+  visualStyle: 4
+  automatic: 0
+  fireRateRPM: 50
+  damage: 88
+  headshotMultiplier: 2.2
+  range: 280
+  pellets: 1
+  moveSpeedMultiplier: 0.9
+  hipSpread: 5.2
+  adsSpread: 0.01
+  recoilVertical: 3.4
+  recoilHorizontal: 0.55
+  screenShake: 0.55
+  adsFovMultiplier: 0.3
+  adsSpeed: 11
+  magazineSize: 5
+  reserveAmmo: 25
+  reloadTime: 2.25
+  bodyColor: {r: 0.22, g: 0.26, b: 0.18, a: 1}
+  accentColor: {r: 0.12, g: 0.13, b: 0.14, a: 1}
+  tracerColor: {r: 0.95, g: 0.96, b: 0.72, a: 1}
+  shotPitch: 0.66
+  modelScale: {x: 0.056, y: 0.072, z: 0.72}
+  barrelLength: 0.64

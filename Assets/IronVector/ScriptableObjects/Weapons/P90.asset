@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de62422087824b748b7fa470f0c8668f, type: 3}
+  m_Name: P90
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
+  weaponName: P90
+  category: 1
+  visualStyle: 3
+  automatic: 1
+  fireRateRPM: 920
+  damage: 20
+  headshotMultiplier: 1.5
+  range: 100
+  pellets: 1
+  moveSpeedMultiplier: 1.04
+  hipSpread: 1
+  adsSpread: 0.28
+  recoilVertical: 0.72
+  recoilHorizontal: 0.46
+  screenShake: 0.16
+  adsFovMultiplier: 0.85
+  adsSpeed: 16
+  magazineSize: 50
+  reserveAmmo: 150
+  reloadTime: 1.85
+  bodyColor: {r: 0.18, g: 0.19, b: 0.2, a: 1}
+  accentColor: {r: 0.32, g: 0.31, b: 0.28, a: 1}
+  tracerColor: {r: 1, g: 0.92, b: 0.5, a: 1}
+  shotPitch: 1.34
+  modelScale: {x: 0.058, y: 0.088, z: 0.42}
+  barrelLength: 0.22

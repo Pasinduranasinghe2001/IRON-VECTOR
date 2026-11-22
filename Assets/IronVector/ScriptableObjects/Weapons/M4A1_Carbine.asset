@@ -14,24 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
   weaponName: M4A1 Carbine
   category: 0
+  visualStyle: 0
   automatic: 1
-  fireRateRPM: 720
-  damage: 24
-  headshotMultiplier: 1.6
-  range: 145
+  fireRateRPM: 780
+  damage: 25
+  headshotMultiplier: 1.55
+  range: 150
   pellets: 1
-  hipSpread: 1.8
-  adsSpread: 0.22
-  recoilVertical: 1.1
-  recoilHorizontal: 0.45
+  moveSpeedMultiplier: 0.96
+  hipSpread: 1.75
+  adsSpread: 0.16
+  recoilVertical: 1
+  recoilHorizontal: 0.38
+  screenShake: 0.22
   adsFovMultiplier: 0.78
-  adsSpeed: 12
+  adsSpeed: 13
   magazineSize: 30
-  reserveAmmo: 120
-  reloadTime: 1.75
-  bodyColor: {r: 0.18, g: 0.19, b: 0.21, a: 1}
-  accentColor: {r: 0.32, g: 0.3, b: 0.25, a: 1}
+  reserveAmmo: 150
+  reloadTime: 1.65
+  bodyColor: {r: 0.16, g: 0.17, b: 0.19, a: 1}
+  accentColor: {r: 0.3, g: 0.28, b: 0.24, a: 1}
   tracerColor: {r: 1, g: 0.85, b: 0.35, a: 1}
-  shotPitch: 1
-  modelScale: {x: 0.06, y: 0.08, z: 0.56}
-  barrelLength: 0.42
+  shotPitch: 1.02
+  modelScale: {x: 0.056, y: 0.072, z: 0.52}
+  barrelLength: 0.4

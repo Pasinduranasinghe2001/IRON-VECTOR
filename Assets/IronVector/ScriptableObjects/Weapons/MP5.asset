@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de62422087824b748b7fa470f0c8668f, type: 3}
+  m_Name: MP5
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
+  weaponName: MP5
+  category: 1
+  visualStyle: 2
+  automatic: 1
+  fireRateRPM: 820
+  damage: 24
+  headshotMultiplier: 1.5
+  range: 95
+  pellets: 1
+  moveSpeedMultiplier: 1.04
+  hipSpread: 1.1
+  adsSpread: 0.26
+  recoilVertical: 0.82
+  recoilHorizontal: 0.42
+  screenShake: 0.18
+  adsFovMultiplier: 0.84
+  adsSpeed: 16
+  magazineSize: 30
+  reserveAmmo: 150
+  reloadTime: 1.45
+  bodyColor: {r: 0.13, g: 0.14, b: 0.16, a: 1}
+  accentColor: {r: 0.22, g: 0.24, b: 0.27, a: 1}
+  tracerColor: {r: 1, g: 0.9, b: 0.45, a: 1}
+  shotPitch: 1.24
+  modelScale: {x: 0.05, y: 0.068, z: 0.38}
+  barrelLength: 0.28

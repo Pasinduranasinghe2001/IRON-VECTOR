@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de62422087824b748b7fa470f0c8668f, type: 3}
+  m_Name: M249_SAW
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponData
+  weaponName: M249 SAW
+  category: 4
+  visualStyle: 6
+  automatic: 1
+  fireRateRPM: 750
+  damage: 28
+  headshotMultiplier: 1.5
+  range: 165
+  pellets: 1
+  moveSpeedMultiplier: 0.86
+  hipSpread: 2.8
+  adsSpread: 0.35
+  recoilVertical: 1.35
+  recoilHorizontal: 0.75
+  screenShake: 0.32
+  adsFovMultiplier: 0.82
+  adsSpeed: 8.5
+  magazineSize: 100
+  reserveAmmo: 200
+  reloadTime: 3.1
+  bodyColor: {r: 0.19, g: 0.21, b: 0.18, a: 1}
+  accentColor: {r: 0.27, g: 0.29, b: 0.22, a: 1}
+  tracerColor: {r: 1, g: 0.82, b: 0.3, a: 1}
+  shotPitch: 0.82
+  modelScale: {x: 0.078, y: 0.095, z: 0.64}
+  barrelLength: 0.5

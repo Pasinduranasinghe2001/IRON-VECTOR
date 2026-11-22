@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 627890165998715095}
   - component: {fileID: 1109323970632460087}
   - component: {fileID: 2873905920902844454}
+  - component: {fileID: 808508282515441673}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -169,7 +170,7 @@ CharacterController:
   m_Height: 1.8
   m_Radius: 0.35
   m_SlopeLimit: 45
-  m_StepOffset: 0.35
+  m_StepOffset: 0.38
   m_SkinWidth: 0.04
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
@@ -203,9 +204,9 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1589170052926601067}
   _networkObjectCache: {fileID: 0}
-  respawnDelay: 4
-  regenDelay: 4.5
-  regenPerSecond: 30
+  respawnDelay: 3.5
+  regenDelay: 4.2
+  regenPerSecond: 32
   killHeight: -25
 --- !u!114 &176815536232837025
 MonoBehaviour:
@@ -225,17 +226,17 @@ MonoBehaviour:
   cameraPivot: {fileID: 1695275869558829220}
   bodyVisual: {fileID: 3128493803850829473}
   head: {fileID: 4996026535524216541}
-  walkSpeed: 5.2
-  sprintSpeed: 8.2
-  crouchSpeed: 2.8
-  adsSpeedMultiplier: 0.6
-  acceleration: 14
-  airControl: 0.35
-  jumpHeight: 1.1
+  walkSpeed: 5.4
+  sprintSpeed: 8.4
+  crouchSpeed: 2.9
+  adsSpeedMultiplier: 0.62
+  acceleration: 15
+  airControl: 0.38
+  jumpHeight: 1.15
   gravity: -22
-  slideSpeed: 11.5
-  slideDuration: 0.75
-  slideCooldown: 0.6
+  slideSpeed: 12
+  slideDuration: 0.72
+  slideCooldown: 0.55
   standHeight: 1.8
   crouchHeight: 1.15
   standEyeHeight: 1.6
@@ -259,7 +260,7 @@ MonoBehaviour:
   playerCamera: {fileID: 1769945113569981578}
   minPitch: -85
   maxPitch: 85
-  recoilRecoverySpeed: 12
+  recoilRecoverySpeed: 14
 --- !u!114 &627890165998715095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -293,9 +294,9 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 1589170052926601067}
   _networkObjectCache: {fileID: 0}
   maxGrenades: 2
-  throwSpeed: 19
+  throwSpeed: 19.5
   upwardBoost: 4.2
-  fuseSeconds: 2.2
+  fuseSeconds: 2.1
   explosionRadius: 8.5
   explosionDamage: 130
   throwCooldown: 0.8
@@ -315,6 +316,22 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 1589170052926601067}
   _networkObjectCache: {fileID: 0}
   interactRange: 4
+--- !u!114 &808508282515441673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1550665105049081755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d94990224707b3c48a4c0b2968c3cc0c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.PlayerBombInteraction
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 1589170052926601067}
+  _networkObjectCache: {fileID: 0}
+  holdDuration: 3.2
 --- !u!1 &4453160087869967320
 GameObject:
   m_ObjectHideFlags: 0

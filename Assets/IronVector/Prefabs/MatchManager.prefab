@@ -107,5 +107,9 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 0}
   tdmScoreLimit: 30
   dominationScoreLimit: 200
+  ffaScoreLimit: 20
+  sndRoundsToWin: 4
   matchDurationSeconds: 600
-  postMatchDuration: 10
+  sndRoundSeconds: 120
+  sndBombFuseSeconds: 35
+  postMatchDuration: 9

@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::IronVector.WeaponDatabase
   weapons:
   - {fileID: 11400000, guid: 7cff80162a6eaea41aae44133e737ad9, type: 2}
-  - {fileID: 11400000, guid: 110c3958116746845a1f60abd23f9dd9, type: 2}
-  - {fileID: 11400000, guid: 883af2b994325f14eb849750c4f7c086, type: 2}
-  - {fileID: 11400000, guid: c5ea59f56610f8847bc2d2e2c5efe03e, type: 2}
-  - {fileID: 11400000, guid: e7004f51c87bc9948a1738d4cba2fb27, type: 2}
-  sidearmIndex: 4
+  - {fileID: 11400000, guid: d3cf236364e274547a6a83833179e0bb, type: 2}
+  - {fileID: 11400000, guid: 5114345aed8ca1d46b345c76984bfd09, type: 2}
+  - {fileID: 11400000, guid: 3996ef74cc5e0e24a8137eb70dedd6fb, type: 2}
+  - {fileID: 11400000, guid: 3915df13d134bca448d3a734d19fede0, type: 2}
+  - {fileID: 11400000, guid: 91d472ae8590e8c408e8b1d2218a4d3e, type: 2}
+  - {fileID: 11400000, guid: 562c4fd3278c805499a1f123e2b6b985, type: 2}
+  - {fileID: 11400000, guid: 27d7608e7432f7341aee26a02ea2b8a0, type: 2}
+  - {fileID: 11400000, guid: c3d261fbd5831914faf0e0c44fbac346, type: 2}
+  primaryCount: 7
+  firstSidearmIndex: 7
