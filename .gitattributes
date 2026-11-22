@@ -1,0 +1,32 @@
+# Normalize line endings for text files
+* text=auto
+
+# Code
+*.cs        text diff=csharp
+*.shader    text
+*.hlsl      text
+*.json      text
+*.md        text
+
+# Unity YAML assets (keep as text so they diff/merge)
+*.unity     text eol=lf
+*.prefab    text eol=lf
+*.asset     text eol=lf
+*.mat       text eol=lf
+*.meta      text eol=lf
+*.controller text eol=lf
+*.anim      text eol=lf
+
+# Binary art / audio (move to Git LFS when the project grows)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.tga  binary
+*.psd  binary
+*.exr  binary
+*.hdr  binary
+*.fbx  binary
+*.blend binary
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
