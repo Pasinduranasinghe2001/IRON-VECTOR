@@ -213,7 +213,7 @@ namespace IronVector
 
             float cx = Screen.width * 0.5f;
             Rect bg = new Rect(cx - 180f, 12f, 360f, 40f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
+            TacticalGuiTheme.DrawGlassPanel(bg, new Color(0.05f, 0.07f, 0.10f, 0.86f));
 
             if (mode == GameMode.FreeForAll)
             {
@@ -360,7 +360,7 @@ namespace IronVector
             string perk = StrategyInfo.ShortNames[Mathf.Clamp(local.Strategy.Value, 0, StrategyInfo.ShortNames.Length - 1)];
 
             Rect bg = new Rect(16f, Screen.height - 84f, 275f, 68f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
+            TacticalGuiTheme.DrawGlassPanel(bg, new Color(0.05f, 0.07f, 0.10f, 0.86f), teamCol);
             GUI.Label(new Rect(bg.x + 12f, bg.y + 4f, 185f, 20f), $"{Teams.Name(local.Team.Value)} · {stance} · {perk}", _boldLeft);
             GUI.Label(new Rect(bg.xMax - 78f, bg.y + 4f, 66f, 20f), $"{Mathf.CeilToInt(hp)} HP", _boldRight);
 
@@ -373,7 +373,7 @@ namespace IronVector
         void DrawBottomRightWeapon(PlayerIdentity local, bool inVehicle)
         {
             Rect bg = new Rect(Screen.width - 286f, Screen.height - 86f, 270f, 70f);
-            DrawRect(bg, new Color(0.05f, 0.07f, 0.09f, 0.84f));
+            TacticalGuiTheme.DrawGlassPanel(bg, new Color(0.05f, 0.07f, 0.10f, 0.86f), TacticalGuiTheme.AccentAmber);
 
             if (inVehicle && local.VehicleUser.Vehicle != null)
             {
@@ -499,7 +499,7 @@ namespace IronVector
             float w = 560f;
             float h = 76f + Mathf.Max(1, _sortedPlayers.Count) * 26f;
             Rect r = new Rect(Screen.width * 0.5f - w * 0.5f, 110f, w, h);
-            DrawRect(r, new Color(0.05f, 0.07f, 0.09f, 0.92f));
+            TacticalGuiTheme.DrawGlassPanel(r, new Color(0.05f, 0.07f, 0.10f, 0.94f), TacticalGuiTheme.AccentAmber);
 
             GUI.Label(new Rect(r.x + 14f, r.y + 10f, 200f, 24f), "CALLSIGN", _boldLeft);
             GUI.Label(new Rect(r.x + 220f, r.y + 10f, 90f, 24f), "TEAM", _boldCenter);
@@ -525,9 +525,9 @@ namespace IronVector
 
         void DrawPauseMenu(PlayerIdentity local)
         {
-            DrawRect(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.58f));
-            Rect r = new Rect(Screen.width * 0.5f - 250f, Screen.height * 0.5f - 235f, 500f, 470f);
-            DrawRect(r, new Color(0.08f, 0.10f, 0.13f, 0.96f));
+            DrawRect(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.62f));
+            Rect r = new Rect(Screen.width * 0.5f - 260f, Screen.height * 0.5f - 245f, 520f, 490f);
+            TacticalGuiTheme.DrawGlassPanel(r, new Color(0.06f, 0.08f, 0.11f, 0.96f), TacticalGuiTheme.AccentAmber);
 
             GUILayout.BeginArea(new Rect(r.x + 22f, r.y + 18f, r.width - 44f, r.height - 36f));
             GUILayout.Label("PAUSED — SETTINGS & LOADOUT", _bigBanner);
@@ -568,9 +568,9 @@ namespace IronVector
 
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("RESUME", GUILayout.Height(36))) PlayerLook.Resume();
+            if (GUILayout.Button("RESUME MATCH", TacticalGuiTheme.PrimaryBtnStyle, GUILayout.Height(36))) PlayerLook.Resume();
             GUILayout.Space(10);
-            if (GUILayout.Button("DISCONNECT TO MENU", GUILayout.Height(36)))
+            if (GUILayout.Button("EXIT TO LOBBY", TacticalGuiTheme.ActionBtnStyle, GUILayout.Height(36)))
             {
                 if (MainMenuUI.Instance != null) MainMenuUI.Instance.DisconnectToMenu();
                 else PlayerLook.ResetInputState();
@@ -589,6 +589,7 @@ namespace IronVector
 
         static void EnsureTexturesAndStyles()
         {
+            TacticalGuiTheme.EnsureInitialized();
             if (_whiteTex != null) return;
             _whiteTex = new Texture2D(1, 1);
             _whiteTex.SetPixel(0, 0, Color.white);

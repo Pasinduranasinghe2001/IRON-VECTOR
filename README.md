@@ -30,7 +30,8 @@
     ```powershell
     "IRON VECTOR.exe" -batchmode -nographics -server -map AdminHall -mode snd -port 7770 -pass secret123
     ```
-- **Graphics & UI Settings**
+- **Tactical Pre-Match Lobby UI & Graphics Settings**
+  - **Call of Duty–Inspired Pre-Match Lobby**: Edge-anchored frosted-glass overlay (`PLAY`, `WEAPONS`, `STRATEGIES`, `CHALLENGES`, `SETTINGS`), live 3D night helipad backdrop with idling transport helicopter & 3D Tactical Operator holding your live weapon, drag-to-rotate 3D gun inspect, and graphical map selection cards
   - Live **Graphics Quality Presets** (`Low`, `Medium`, `High`, `Ultra` scaling URP renderScale, MSAA, cascades & shadow resolution)
   - FPS Cap (`60 / 120 / 144 / Unlimited`), VSync, FOV, Mouse Sensitivity, FPS Counter
   - **HUD / UI Off Mode**: Press **`H`** anytime (or toggle in Settings/Pause) to hide all combat HUD overlays

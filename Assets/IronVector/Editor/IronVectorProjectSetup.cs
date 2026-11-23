@@ -492,20 +492,14 @@ namespace IronVector.Editor
             PrefabObjects spawnables)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            SetupEnvironment(new Color(0.45f, 0.54f, 0.66f), new Color(0.22f, 0.25f, 0.30f), 42f, -35f, 1.6f, "MainMenuVolumeProfile");
-
-            // Subtle architectural backdrop for the Lobby Camera
-            Material matFloor = GetOrCreateTileMat("Mat_MarbleTile", new Color(0.55f, 0.56f, 0.58f), new Color(0.45f, 0.46f, 0.48f), 0.55f, 18f);
-            Material matAccent = GetOrCreatePbrMat("Mat_Steel", new Color(0.24f, 0.27f, 0.31f), 0.55f, 0.5f);
-            Block(null, "MenuStage", new Vector3(0f, -0.5f, 0f), new Vector3(40f, 1f, 40f), matFloor);
-            Block(null, "MonumentA", new Vector3(-6f, 2.5f, 8f), new Vector3(2f, 5f, 2f), matAccent);
-            Block(null, "MonumentB", new Vector3(6f, 3.2f, 10f), new Vector3(2.5f, 6.4f, 2.5f), matAccent);
+            SetupEnvironment(new Color(0.16f, 0.26f, 0.42f), new Color(0.10f, 0.16f, 0.24f), 38f, -35f, 0.55f, "MainMenuVolumeProfile");
 
             var menuCamGo = new GameObject("MenuCamera");
             menuCamGo.tag = "MainCamera";
-            menuCamGo.transform.position = new Vector3(0f, 4.5f, -8f);
-            menuCamGo.transform.LookAt(new Vector3(0f, 2.2f, 8f));
+            menuCamGo.transform.position = new Vector3(0.02f, 1.34f, -2.85f);
+            menuCamGo.transform.LookAt(new Vector3(0f, 1.12f, 0.45f));
             Camera menuCam = menuCamGo.AddComponent<Camera>();
+            menuCam.fieldOfView = 48f;
             menuCam.farClipPlane = 400f;
             var menuCamData = menuCamGo.AddComponent<UniversalAdditionalCameraData>();
             menuCamData.renderPostProcessing = true;
