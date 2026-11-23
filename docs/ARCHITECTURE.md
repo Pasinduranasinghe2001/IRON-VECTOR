@@ -23,3 +23,4 @@
 
 - **`GraphicsSettingsManager.cs`** dynamically updates URP `UniversalRenderPipelineAsset` (`renderScale`, `msaaSampleCount`, `mainLightShadowmapResolution`, `shadowDistance`, `shadowCascadeCount`), `QualitySettings.vSyncCount`, and `Application.targetFrameRate` across 4 presets (`Low`, `Medium`, `High`, `Ultra`).
 - **`LocalProfile.ShowHud`** (`H` hotkey or Pause/Settings toggle) disables all combat HUD overlays cleanly (`UI Off`) while keeping Pause (`Esc`) available.
+- **`WeaponModelBuilder.cs`** procedurally builds multi-part 3D CAD meshes (45° chamfered receivers, extruded curved magazines, sculpted stocks/grips, MIL-STD-1913 Picatinny rails, illuminated optics/reticles, and `URP Lit` PBR materials with brushed metal, knurling, and woodgrain micro-textures) for all 9 weapons.

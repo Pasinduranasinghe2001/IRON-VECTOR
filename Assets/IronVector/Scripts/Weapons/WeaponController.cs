@@ -34,11 +34,17 @@ namespace IronVector
         float _ads;
         bool _modelsVisible = true;
         GameObject _currentModel;
+        WeaponModelBuilder.WeaponRig _rig;
         Transform _muzzlePoint;
-        Vector3 _hipLocalPos = new Vector3(0.24f, -0.22f, 0.45f);
-        Vector3 _adsLocalPos = new Vector3(0f, -0.142f, 0.35f);
+        Vector3 _hipLocalPos = new Vector3(0.21f, -0.19f, 0.44f);
+        Vector3 _hipLocalEuler = new Vector3(1.5f, -4.2f, -2.0f);
+        Vector3 _adsLocalPos = new Vector3(0f, -0.072f, 0.27f);
         float _recoilKickZ;
+        float _recoilKickPitch;
+        float _boltAnim;
+        float _pumpAnim;
         float _sprintTilt;
+        Vector2 _swayOffset;
 
         readonly RaycastHit[] _rayBuffer = new RaycastHit[32];
 
@@ -271,22 +277,43 @@ namespace IronVector
         {
             if (weaponHolder == null) return;
             _recoilKickZ = Mathf.Lerp(_recoilKickZ, 0f, Time.deltaTime * 16f);
+            _recoilKickPitch = Mathf.Lerp(_recoilKickPitch, 0f, Time.deltaTime * 18f);
+            _boltAnim = Mathf.MoveTowards(_boltAnim, 0f, Time.deltaTime * (w.category == WeaponCategory.Sniper ? 3.5f : 14f));
+            _pumpAnim = Mathf.MoveTowards(_pumpAnim, 0f, Time.deltaTime * 3.8f);
+
+            if (_rig != null && _rig.BoltCarrier != null)
+                _rig.BoltCarrier.localPosition = _rig.BoltRestPos + new Vector3(0f, 0f, _rig.BoltTravelZ * _boltAnim);
+            if (_rig != null && _rig.PumpForend != null)
+            {
+                float pumpPull = Mathf.Sin(_pumpAnim * Mathf.PI);
+                _rig.PumpForend.localPosition = _rig.PumpRestPos + new Vector3(0f, 0f, -0.068f * pumpPull);
+            }
+
             bool sprinting = _id.Motor != null && _id.Motor.IsSprinting && _ads < 0.1f && !_reloading;
             _sprintTilt = Mathf.Lerp(_sprintTilt, sprinting ? 1f : 0f, Time.deltaTime * 11f);
 
-            float moveBob = (_id.Motor != null && _id.Motor.IsGrounded) ? _id.Motor.Speed01 * 0.016f : 0f;
+            Vector2 lookInput = IVInput.Look;
+            Vector2 targetSway = new Vector2(
+                Mathf.Clamp(-lookInput.x * 0.0022f, -0.014f, 0.014f),
+                Mathf.Clamp(-lookInput.y * 0.0022f, -0.012f, 0.012f)) * (1f - _ads * 0.78f);
+            _swayOffset = Vector2.Lerp(_swayOffset, targetSway, Time.deltaTime * 10f);
+
+            float moveBob = (_id.Motor != null && _id.Motor.IsGrounded) ? _id.Motor.Speed01 * 0.013f : 0f;
             float bobSpeed = sprinting ? 12f : 9f;
-            float bobX = Mathf.Sin(Time.time * bobSpeed) * moveBob * (1f - _ads * 0.82f);
-            float bobY = Mathf.Abs(Mathf.Cos(Time.time * bobSpeed)) * moveBob * (1f - _ads * 0.82f);
+            float bobX = Mathf.Sin(Time.time * bobSpeed) * moveBob * (1f - _ads * 0.85f);
+            float bobY = Mathf.Abs(Mathf.Cos(Time.time * bobSpeed)) * moveBob * (1f - _ads * 0.85f);
 
             Vector3 basePos = Vector3.Lerp(_hipLocalPos, _adsLocalPos, _ads);
             Vector3 sprintOffset = new Vector3(-0.07f, -0.04f, -0.05f) * _sprintTilt;
-            Vector3 reloadOffset = _reloading ? new Vector3(0f, -0.15f, -0.04f) : Vector3.zero;
-            weaponHolder.localPosition = basePos + sprintOffset + reloadOffset + new Vector3(bobX, -bobY, -_recoilKickZ);
+            Vector3 reloadOffset = _reloading ? new Vector3(0f, -0.14f, -0.04f) : Vector3.zero;
+            weaponHolder.localPosition = basePos + sprintOffset + reloadOffset
+                + new Vector3(bobX + _swayOffset.x, -bobY + _swayOffset.y, -_recoilKickZ);
 
+            Quaternion hipRot = Quaternion.Slerp(Quaternion.Euler(_hipLocalEuler), Quaternion.identity, _ads);
+            Quaternion swayRot = Quaternion.Euler(-_swayOffset.y * 160f - _recoilKickPitch, _swayOffset.x * 160f, -_swayOffset.x * 220f);
             Quaternion sprintRot = Quaternion.Euler(14f * _sprintTilt, -24f * _sprintTilt, 8f * _sprintTilt);
             Quaternion reloadRot = _reloading ? Quaternion.Euler(28f, -15f, 18f) : Quaternion.identity;
-            weaponHolder.localRotation = sprintRot * reloadRot;
+            weaponHolder.localRotation = hipRot * swayRot * sprintRot * reloadRot;
 
             if (w.category == WeaponCategory.Sniper && _currentModel != null)
             {
@@ -300,7 +327,10 @@ namespace IronVector
             _magAmmo[slot]--;
             _nextFireTime = Time.time + 60f / Mathf.Max(1f, w.fireRateRPM);
             LastShotTime = Time.time;
-            _recoilKickZ = Mathf.Min(0.085f, _recoilKickZ + 0.04f);
+            _recoilKickZ = Mathf.Min(0.070f, _recoilKickZ + 0.036f);
+            _recoilKickPitch = Mathf.Min(6.5f, _recoilKickPitch + (w.category == WeaponCategory.Pistol ? 3.8f : 2.2f));
+            _boltAnim = 1f;
+            if (w.category == WeaponCategory.Shotgun) _pumpAnim = 1f;
 
             Camera cam = _id.Look != null ? _id.Look.playerCamera : null;
             Transform aimTf = cam != null ? cam.transform : (_id.Motor != null && _id.Motor.cameraPivot != null ? _id.Motor.cameraPivot : transform);
@@ -328,7 +358,10 @@ namespace IronVector
             }
 
             FxUtil.MuzzleFlash(muzzle, aimTf.forward);
-            SpawnShellEject(muzzle - aimTf.forward * 0.25f + aimTf.right * 0.06f, aimTf.right, aimTf.up);
+            Vector3 ejectOrigin = _rig != null && _rig.EjectPort != null
+                ? _rig.EjectPort.position
+                : muzzle - aimTf.forward * 0.28f + aimTf.right * 0.04f;
+            SpawnShellEject(ejectOrigin, aimTf.right, aimTf.up);
             FxUtil.PlaySound2D(FxUtil.ShotClip, 0.85f, w.shotPitch * UnityEngine.Random.Range(0.96f, 1.04f));
 
             if (_id.Look != null)
@@ -348,13 +381,20 @@ namespace IronVector
         static void SpawnShellEject(Vector3 pos, Vector3 right, Vector3 up)
         {
             if (!FxUtil.Enabled) return;
-            GameObject shell = FxUtil.Blob(PrimitiveType.Cube, pos, 0.022f, new Color(0.88f, 0.72f, 0.26f), 0.28f);
-            if (shell == null) return;
-            shell.transform.localScale = new Vector3(0.012f, 0.012f, 0.032f);
+            GameObject shell = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(shell.GetComponent<Collider>());
+            shell.name = "BrassShell";
+            shell.transform.position = pos;
+            shell.transform.rotation = Quaternion.LookRotation(right, up) * Quaternion.Euler(90f, 0f, 0f);
+            shell.transform.localScale = new Vector3(0.011f, 0.018f, 0.011f);
+            var rend = shell.GetComponent<Renderer>();
+            rend.sharedMaterial = FxUtil.MetalMaterial(new Color(0.88f, 0.72f, 0.26f));
+            rend.shadowCastingMode = ShadowCastingMode.Off;
             var rb = shell.AddComponent<Rigidbody>();
             rb.mass = 0.02f;
-            rb.linearVelocity = right * UnityEngine.Random.Range(1.8f, 3.0f) + up * UnityEngine.Random.Range(1.2f, 2.2f);
-            rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 25f;
+            rb.linearVelocity = right * UnityEngine.Random.Range(1.5f, 2.6f) + up * UnityEngine.Random.Range(1.1f, 1.9f);
+            rb.angularVelocity = UnityEngine.Random.insideUnitSphere * 28f;
+            Destroy(shell, 0.45f);
         }
 
         void CastBullet(Vector3 origin, Vector3 dir, float range, out Vector3 hitPoint, out Vector3 hitNormal, out bool hitFlesh, out bool headshot, out NetworkObject targetNob)
@@ -498,82 +538,16 @@ namespace IronVector
             WeaponData w = CurrentWeapon;
             if (w == null) return;
 
-            _currentModel = new GameObject(w.weaponName + "_Model");
-            _currentModel.transform.SetParent(weaponHolder, false);
-
-            // Receiver
-            AddWeaponPart("Receiver", PrimitiveType.Cube, Vector3.zero, w.modelScale, w.bodyColor);
-
-            // Pistol Grip
-            AddWeaponPart("Grip", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 0.85f, -w.modelScale.z * 0.16f),
-                new Vector3(0.032f, 0.085f, 0.042f), w.bodyColor, new Vector3(16f, 0f, 0f));
-
-            // Handguard & Stock (if long gun)
-            if (w.category != WeaponCategory.Pistol)
-            {
-                AddWeaponPart("Stock", PrimitiveType.Cube, new Vector3(0f, -0.01f, -w.modelScale.z * 0.62f),
-                    new Vector3(0.040f, 0.070f, 0.22f), w.accentColor);
-                AddWeaponPart("Handguard", PrimitiveType.Cube, new Vector3(0f, -0.005f, w.modelScale.z * 0.36f),
-                    new Vector3(w.modelScale.x * 1.05f, w.modelScale.y * 0.80f, w.modelScale.z * 0.38f), w.accentColor);
-            }
-
-            // Magazine style
-            if (w.visualStyle == WeaponVisualStyle.P90TopMag)
-            {
-                AddWeaponPart("TopMag", PrimitiveType.Cube, new Vector3(0f, w.modelScale.y * 0.55f, 0.05f),
-                    new Vector3(0.044f, 0.025f, 0.26f), new Color(0.25f, 0.22f, 0.16f));
-            }
-            else if (w.visualStyle == WeaponVisualStyle.LightMachineGun)
-            {
-                AddWeaponPart("BoxMag", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 1.15f, 0.05f),
-                    new Vector3(0.11f, 0.12f, 0.14f), w.accentColor);
-            }
-            else if (w.category != WeaponCategory.Shotgun && w.category != WeaponCategory.Sniper)
-            {
-                float magTilt = w.visualStyle == WeaponVisualStyle.KalashnikovWood ? -22f : -8f;
-                float magLen = w.category == WeaponCategory.Pistol ? 0.06f : 0.14f;
-                AddWeaponPart("Magazine", PrimitiveType.Cube, new Vector3(0f, -w.modelScale.y * 1.05f, 0.07f),
-                    new Vector3(0.028f, magLen, 0.048f), w.accentColor, new Vector3(magTilt, 0f, 0f));
-            }
-
-            // Barrel + Optional Suppressor
-            bool hasSuppressor = w.visualStyle == WeaponVisualStyle.SubmachineSuppressed;
-            AddWeaponPart("Barrel", PrimitiveType.Cylinder,
-                new Vector3(0f, 0.012f, w.modelScale.z * 0.45f + w.barrelLength * 0.4f),
-                new Vector3(hasSuppressor ? 0.040f : 0.024f, w.barrelLength * 0.5f, hasSuppressor ? 0.040f : 0.024f),
-                w.visualStyle == WeaponVisualStyle.ChromeHandCannon ? w.bodyColor : new Color(0.12f, 0.12f, 0.13f),
-                new Vector3(90f, 0f, 0f));
-
-            // Optic / Iron Sight
-            Vector3 opticScale = w.category == WeaponCategory.Sniper
-                ? new Vector3(0.040f, 0.040f, 0.26f)
-                : (w.category == WeaponCategory.AssaultRifle || w.visualStyle == WeaponVisualStyle.P90TopMag
-                    ? new Vector3(0.032f, 0.028f, 0.10f)
-                    : new Vector3(0.018f, 0.016f, 0.03f));
-            AddWeaponPart("Optic", PrimitiveType.Cube,
-                new Vector3(0f, w.modelScale.y * 0.65f, w.category == WeaponCategory.Pistol ? w.modelScale.z * 0.4f : 0.02f),
-                opticScale, new Color(0.12f, 0.12f, 0.14f));
-
-            var muzzleGo = new GameObject("Muzzle");
-            muzzleGo.transform.SetParent(_currentModel.transform, false);
-            muzzleGo.transform.localPosition = new Vector3(0f, 0.012f, w.modelScale.z * 0.45f + w.barrelLength);
-            _muzzlePoint = muzzleGo.transform;
+            _rig = WeaponModelBuilder.Build(w, weaponHolder, IsOwner);
+            _currentModel = _rig.Root;
+            _muzzlePoint = _rig.Muzzle;
+            _hipLocalPos = _rig.HipLocalPos;
+            _hipLocalEuler = _rig.HipLocalEuler;
+            _adsLocalPos = new Vector3(-_rig.AimAnchorLocalPos.x, -_rig.AimAnchorLocalPos.y, _rig.AdsDistanceZ);
+            _boltAnim = 0f;
+            _pumpAnim = 0f;
 
             weaponHolder.gameObject.SetActive(_modelsVisible);
-        }
-
-        void AddWeaponPart(string partName, PrimitiveType type, Vector3 pos, Vector3 scale, Color color, Vector3 euler = default)
-        {
-            var go = GameObject.CreatePrimitive(type);
-            Destroy(go.GetComponent<Collider>());
-            go.name = partName;
-            go.transform.SetParent(_currentModel.transform, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = Quaternion.Euler(euler);
-            go.transform.localScale = scale;
-            var r = go.GetComponent<Renderer>();
-            r.sharedMaterial = FxUtil.ColorMaterial(color);
-            r.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         static Vector3 ApplySpread(Vector3 forward, float spreadDegrees)

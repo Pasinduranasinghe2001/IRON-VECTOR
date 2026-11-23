@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 1109323970632460087}
   - component: {fileID: 2873905920902844454}
   - component: {fileID: 808508282515441673}
+  - component: {fileID: 4389119628077151517}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -332,6 +333,21 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 1589170052926601067}
   _networkObjectCache: {fileID: 0}
   holdDuration: 3.2
+--- !u!114 &4389119628077151517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1550665105049081755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18dbda6d5e260014ab3538dc7db5e064, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IronVector.PlayerElevatorInteraction
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 1589170052926601067}
+  _networkObjectCache: {fileID: 0}
 --- !u!1 &4453160087869967320
 GameObject:
   m_ObjectHideFlags: 0

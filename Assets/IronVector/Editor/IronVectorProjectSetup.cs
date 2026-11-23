@@ -250,7 +250,7 @@ namespace IronVector.Editor
             camGo.tag = "MainCamera";
             camGo.transform.SetParent(pivot.transform, false);
             var cam = camGo.AddComponent<Camera>();
-            cam.nearClipPlane = 0.08f;
+            cam.nearClipPlane = 0.03f;
             cam.farClipPlane = 450f;
             cam.enabled = false;
             var camData = camGo.AddComponent<UniversalAdditionalCameraData>();

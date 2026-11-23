@@ -44,6 +44,7 @@ namespace IronVector
         {
             base.OnStartClient();
             if (!IsOwner || playerCamera == null) return;
+            playerCamera.nearClipPlane = 0.03f;
             playerCamera.enabled = true;
             if (_listener != null) _listener.enabled = true;
             _yaw = transform.eulerAngles.y;

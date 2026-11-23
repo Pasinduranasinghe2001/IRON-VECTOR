@@ -9,7 +9,7 @@
 - **Call of Duty 4: Modern Warfare–Inspired Arsenal (9 Weapons)**
   - **Primaries**: **M4A1 Carbine**, **AK-47**, **MP5**, **P90** (50-rd), **M40A3** (Bolt Sniper), **W1200** (8-pellet Pump Shotgun), **M249 SAW** (100-rd LMG)
   - **Sidearms**: **M9** (9mm) & **Desert Eagle .50**
-  - Crisp ADS zoom & sway, sprint-tilt, brass shell ejections, micro camera recoil/shake, reload cancel, and procedural weapon/bullet/explosion SFX
+  - Crisp **CAD-style multi-part 3D PBR weapon models** (`URP Lit` brushed steel, anodized metal, knurled grip, walnut wood, translucent P90 mag, illuminated Holo reticle & 3-dot iron sights), animated bolt/slide/pump cycling, mouse-look sway, ADS alignment, cylindrical brass shell ejections, and procedural SFX
 - **4 Tactical Strategies (Loadout Perks)**
   1. **Assault · Stopping Power** — `+15%` bullet damage
   2. **Recon · Ghost (UAV Jammer)** — Hidden from enemy radar sweeps & tighter moving hipfire

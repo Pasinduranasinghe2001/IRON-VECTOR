@@ -23,6 +23,22 @@ namespace IronVector
             return m;
         }
 
+        public static Material MetalMaterial(Color c)
+        {
+            Color key = new Color(c.r, c.g, c.b, 0.987f);
+            if (Materials.TryGetValue(key, out Material m) && m != null) return m;
+            Shader sh = (GraphicsSettings.currentRenderPipeline != null ? GraphicsSettings.currentRenderPipeline.defaultShader : null)
+                        ?? Shader.Find("Universal Render Pipeline/Lit")
+                        ?? Shader.Find("Standard");
+            m = new Material(sh) { enableInstancing = true };
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            else m.color = c;
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0.88f);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.78f);
+            Materials[key] = m;
+            return m;
+        }
+
         public static void Tracer(Vector3 from, Vector3 to, Color color, float width = 0.025f, float life = 0.06f)
         {
             if (!Enabled) return;
