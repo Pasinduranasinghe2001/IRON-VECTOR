@@ -86,7 +86,40 @@ namespace IronVector
             if (rig.EjectPort == null)
                 rig.EjectPort = MakeMarker(root.transform, "EjectPort", new Vector3(0.028f, 0.022f, 0.02f));
 
+            if (isOwnerViewmodel)
+                AttachFirstPersonHands(ctx, w);
+
             return rig;
+        }
+
+        static void AttachFirstPersonHands(BuildCtx c, WeaponData w)
+        {
+            Material sleeveMat = GetMat(FinishType.MattePolymer, new Color(0.20f, 0.26f, 0.34f));
+            Material cuffMat = GetMat(FinishType.KnurledGrip, new Color(0.15f, 0.17f, 0.19f));
+            Material gloveMat = GetMat(FinishType.KnurledGrip, new Color(0.22f, 0.21f, 0.19f));
+            Material armorMat = GetMat(FinishType.MachinedSteel, new Color(0.24f, 0.25f, 0.27f));
+
+            bool isPistol = w.category == WeaponCategory.Pistol;
+            bool isP90 = w.visualStyle == WeaponVisualStyle.P90TopMag;
+
+            // Right Tactical Forearm & Mechanix Glove gripping pistol grip
+            Vector3 rGripPos = isPistol ? new Vector3(0.008f, -0.052f, -0.032f)
+                : (isP90 ? new Vector3(0.008f, -0.052f, 0.030f) : new Vector3(0.008f, -0.062f, -0.068f));
+            AddChamfer("FP_GloveR", c, rGripPos, new Vector3(0.044f, 0.058f, 0.054f), 0.008f, gloveMat, new Vector3(16f, 0f, 0f));
+            AddChamfer("FP_KnuckleR", c, rGripPos + new Vector3(0.022f, 0.012f, 0.004f), new Vector3(0.008f, 0.046f, 0.038f), 0.002f, armorMat, new Vector3(16f, 0f, 0f));
+            AddChamfer("FP_WristR", c, rGripPos + new Vector3(0.026f, -0.042f, -0.058f), new Vector3(0.056f, 0.054f, 0.095f), 0.012f, cuffMat, new Vector3(-28f, -18f, 0f));
+            AddChamfer("FP_SleeveR", c, rGripPos + new Vector3(0.088f, -0.105f, -0.165f), new Vector3(0.082f, 0.078f, 0.22f), 0.016f, sleeveMat, new Vector3(-24f, -22f, 0f));
+
+            // Left Support Glove & Forearm (parents directly to PumpForend on W1200 so arm pumps!)
+            Transform leftParent = (!isPistol && c.Rig.PumpForend != null) ? c.Rig.PumpForend : c.Root;
+            Vector3 lGripPos = isPistol ? rGripPos + new Vector3(-0.022f, -0.012f, -0.005f)
+                : (c.Rig.PumpForend != null ? new Vector3(-0.010f, -0.018f, 0.0f)
+                    : (isP90 ? new Vector3(-0.014f, -0.032f, 0.140f) : new Vector3(-0.012f, -0.016f, 0.195f)));
+
+            AddChamfer("FP_GloveL", c, lGripPos, new Vector3(0.046f, 0.042f, 0.068f), 0.009f, gloveMat, new Vector3(0f, 10f, 0f), leftParent);
+            AddChamfer("FP_KnuckleL", c, lGripPos + new Vector3(-0.022f, -0.005f, 0.010f), new Vector3(0.008f, 0.032f, 0.048f), 0.002f, armorMat, new Vector3(0f, 10f, 0f), leftParent);
+            AddChamfer("FP_WristL", c, lGripPos + new Vector3(-0.045f, -0.046f, -0.062f), new Vector3(0.054f, 0.052f, 0.095f), 0.012f, cuffMat, new Vector3(-26f, 28f, 0f), leftParent);
+            AddChamfer("FP_SleeveL", c, lGripPos + new Vector3(-0.135f, -0.118f, -0.175f), new Vector3(0.080f, 0.076f, 0.23f), 0.016f, sleeveMat, new Vector3(-24f, 34f, 0f), leftParent);
         }
 
         sealed class BuildCtx
@@ -621,7 +654,10 @@ namespace IronVector
 
             Vector3 reticleLocal = new Vector3(0f, 0.012f + h * 0.5f, -l * 0.08f);
             AddBox("GlassLens", c, reticleLocal, new Vector3(w * 0.72f, h * 0.72f, 0.0015f), glass, Vector3.zero, g.transform);
-            AddCylinder("ReticleDot", c, reticleLocal, 0.0016f, 0.0018f, dotMat, new Vector3(90f, 0f, 0f), g.transform);
+            AddCylinder("ReticleDot", c, reticleLocal, 0.0014f, 0.0018f, dotMat, new Vector3(90f, 0f, 0f), g.transform);
+            AddBox("ReticleTickL", c, reticleLocal + new Vector3(-0.0046f, 0f, 0f), new Vector3(0.0024f, 0.0007f, 0.0014f), dotMat, Vector3.zero, g.transform);
+            AddBox("ReticleTickR", c, reticleLocal + new Vector3(0.0046f, 0f, 0f), new Vector3(0.0024f, 0.0007f, 0.0014f), dotMat, Vector3.zero, g.transform);
+            AddBox("ReticleTickT", c, reticleLocal + new Vector3(0f, 0.0046f, 0f), new Vector3(0.0007f, 0.0024f, 0.0014f), dotMat, Vector3.zero, g.transform);
 
             return basePos + reticleLocal;
         }
@@ -654,7 +690,7 @@ namespace IronVector
 
         static Vector3 Build3DotIronSights(BuildCtx c, Vector3 rearPos, Vector3 frontPos, Material mat, float height)
         {
-            Material dot = GetMat(FinishType.TritiumDot, new Color(0.88f, 0.98f, 0.88f));
+            Material dot = GetMat(FinishType.TritiumDot, new Color(0.28f, 1.0f, 0.42f));
             // Rear twin posts forming a crisp U-notch + glowing white/tritium alignment dots
             AddChamfer("RearSightL", c, rearPos + new Vector3(-0.007f, 0f, 0f), new Vector3(0.005f, height, 0.010f), 0.001f, mat);
             AddChamfer("RearSightR", c, rearPos + new Vector3(0.007f, 0f, 0f), new Vector3(0.005f, height, 0.010f), 0.001f, mat);
@@ -1027,9 +1063,9 @@ namespace IronVector
                     mat.renderQueue = (int)RenderQueue.Transparent;
                     break;
                 case FinishType.ReticleGlow:
-                    metallic = 0f; smoothness = 0.2f; emission = tint * 3.2f; break;
+                    metallic = 0f; smoothness = 0.2f; emission = tint * 3.8f; break;
                 case FinishType.TritiumDot:
-                    metallic = 0f; smoothness = 0.3f; emission = tint * 1.4f; break;
+                    metallic = 0f; smoothness = 0.3f; emission = tint * 2.2f; break;
                 case FinishType.RecessDark:
                     metallic = 0f; smoothness = 0.1f; break;
             }

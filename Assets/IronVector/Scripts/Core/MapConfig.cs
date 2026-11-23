@@ -26,7 +26,9 @@ namespace IronVector
             {
                 PendingDirectMap = gameObject.scene.name;
                 SceneManager.LoadScene("MainMenu");
+                return;
             }
+            WorldPropsBuilder.EnhanceLoadedMap(this);
         }
 
         void OnDestroy()

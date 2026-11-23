@@ -88,7 +88,7 @@ namespace IronVector
             if (!PauseMenuOpen && Cursor.lockState != CursorLockMode.Locked && IVInput.RawDown(IVKey.Fire)) SetPaused(false);
 
             float ads = _id.Weapons != null ? _id.Weapons.AdsAmount : 0f;
-            Vector2 look = IVInput.Look * LocalProfile.Sensitivity * Mathf.Lerp(1f, 0.55f, ads);
+            Vector2 look = IVInput.Look * LocalProfile.Sensitivity * Mathf.Lerp(1f, LocalProfile.AdsSensitivity, ads);
 
             bool spectating = !_id.Health.IsAlive && MatchManager.Instance != null && MatchManager.Instance.IsSearchAndDestroy;
             if (_id.VehicleUser.InVehicle || spectating)

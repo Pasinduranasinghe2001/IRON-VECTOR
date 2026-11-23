@@ -49,6 +49,16 @@ namespace IronVector
         Vector3 _slideDirection;
         bool _crouching;
         float _stance = 1f;
+        Transform _legL, _legR, _torsoPivot;
+        Vector3 _prevWorldPos;
+        float _stridePhase;
+
+        public void BindSoldierRig(Transform legL, Transform legR, Transform torso)
+        {
+            _legL = legL;
+            _legR = legR;
+            _torsoPivot = torso;
+        }
 
         public bool IsSprinting { get; private set; }
         public bool IsCrouching => _crouching;
@@ -60,18 +70,49 @@ namespace IronVector
         {
             _cc = GetComponent<CharacterController>();
             _id = GetComponent<PlayerIdentity>();
+            _prevWorldPos = transform.position;
+            Transform rig = transform.Find("SoldierRig");
+            if (rig != null)
+                BindSoldierRig(rig.Find("LegPivot_L"), rig.Find("LegPivot_R"), rig.Find("TorsoPivot"));
         }
 
         void Update()
         {
+            float planarSpeed;
             if (IsOwner)
             {
                 OwnerUpdate();
+                planarSpeed = _horizontalVelocity.magnitude;
             }
-            else if (cameraPivot != null)
+            else
             {
-                float t = Mathf.InverseLerp(crouchEyeHeight, standEyeHeight, cameraPivot.localPosition.y);
+                float t = cameraPivot != null
+                    ? Mathf.InverseLerp(crouchEyeHeight, standEyeHeight, cameraPivot.localPosition.y)
+                    : 1f;
                 ApplyStance(t, false);
+                Vector3 delta = transform.position - _prevWorldPos;
+                delta.y = 0f;
+                planarSpeed = Time.deltaTime > 0.0001f ? delta.magnitude / Time.deltaTime : 0f;
+            }
+            _prevWorldPos = transform.position;
+            AnimateSoldierStride(planarSpeed);
+        }
+
+        void AnimateSoldierStride(float speed)
+        {
+            if (_legL == null || _legR == null) return;
+            float amp = Mathf.Clamp01(speed / 5.4f) * (_crouching ? 16f : 32f);
+            if (amp > 0.5f)
+            {
+                _stridePhase += Time.deltaTime * Mathf.Lerp(7f, 13f, Mathf.Clamp01(speed / sprintSpeed));
+                float s = Mathf.Sin(_stridePhase) * amp;
+                _legL.localRotation = Quaternion.Euler(s, 0f, 0f);
+                _legR.localRotation = Quaternion.Euler(-s, 0f, 0f);
+            }
+            else
+            {
+                _legL.localRotation = Quaternion.Slerp(_legL.localRotation, Quaternion.identity, Time.deltaTime * 12f);
+                _legR.localRotation = Quaternion.Slerp(_legR.localRotation, Quaternion.identity, Time.deltaTime * 12f);
             }
         }
 
@@ -158,7 +199,14 @@ namespace IronVector
                 _cc.height = h;
                 _cc.center = new Vector3(0f, h * 0.5f, 0f);
             }
-            if (bodyVisual != null)
+            if (_torsoPivot != null)
+            {
+                float torsoY = Mathf.Lerp(0.46f, 0.86f, standT);
+                _torsoPivot.localPosition = new Vector3(0f, torsoY, 0f);
+                if (_legL != null) _legL.localPosition = new Vector3(-0.13f, torsoY, 0f);
+                if (_legR != null) _legR.localPosition = new Vector3(0.13f, torsoY, 0f);
+            }
+            else if (bodyVisual != null)
             {
                 float bodyH = h - 0.2f;
                 Vector3 s = bodyVisual.localScale;

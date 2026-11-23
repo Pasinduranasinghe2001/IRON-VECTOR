@@ -9,7 +9,8 @@
 - **Call of Duty 4: Modern Warfare–Inspired Arsenal (9 Weapons)**
   - **Primaries**: **M4A1 Carbine**, **AK-47**, **MP5**, **P90** (50-rd), **M40A3** (Bolt Sniper), **W1200** (8-pellet Pump Shotgun), **M249 SAW** (100-rd LMG)
   - **Sidearms**: **M9** (9mm) & **Desert Eagle .50**
-  - Crisp **CAD-style multi-part 3D PBR weapon models** (`URP Lit` brushed steel, anodized metal, knurled grip, walnut wood, translucent P90 mag, illuminated Holo reticle & 3-dot iron sights), animated bolt/slide/pump cycling, mouse-look sway, ADS alignment, cylindrical brass shell ejections, and procedural SFX
+  - Crisp **CAD-style multi-part 3D PBR weapon models** with **first-person tactical gloved hands**, illuminated Holo reticle & green tritium 3-dot iron sights, circular Mil-Dot sniper scope, `[V]` weapon inspect, animated bolt/slide/pump cycling, mouse-look sway, ADS aim sensitivity, and cylindrical brass shell ejections
+  - Multi-part **3D Tactical Operator** models with articulated stride animations, Kevlar plate carrier, dual-tube NVGs, headset, and clear Alpha Slate Blue vs Bravo Desert Coyote team uniforms
 - **4 Tactical Strategies (Loadout Perks)**
   1. **Assault · Stopping Power** — `+15%` bullet damage
   2. **Recon · Ghost (UAV Jammer)** — Hidden from enemy radar sweeps & tighter moving hipfire
@@ -21,8 +22,8 @@
   - **Domination (DOM)** — Capture & defend Zones **A / B / C** to 200 pts
   - **Free For All (FFA)** — Every Operator solo to 20 kills
 - **Playable Maps**
-  - **`AdminHall`** — 3-story (**`G` / `1F` / `2F`**) Administration Block inspired by the **Faculty of Engineering, University of Jaffna (Kilinochchi)** featuring cream stucco wings, terracotta sun-shading cornices, blue glazing bands, covered South columned portico, open central skylight atrium, twin stairwells, green campus lawns, and **2 working networked elevators** (**Middle Elevator** + **Corner Elevator**)
-  - **`Outpost Vector` (`Arena`)** — Open 3-lane combined-arms compound with drivable **Recon Buggies**
+  - **`AdminHall`** — Vivid 3-story (**`G` / `1F` / `2F`**) Administration Block inspired by the **Faculty of Engineering, University of Jaffna (Kilinochchi)** featuring cream stucco wings, bold terracotta sun-shading cornices, sapphire glazing, South columned portico, open central skylight atrium, twin stairwells, green campus lawns, **exterior tropical shade trees, Sri Lankan coconut palms, flower planters, flagpoles**, and **2 working networked elevators** (**Middle Elevator** + **Corner Elevator**)
+  - **`Outpost Vector` (`Arena`)** — Vivid 3-lane combined-arms compound with drivable **Recon Buggies** and perimeter desert palms & scrub trees
 - **Standard Multiplayer Connection Hub (Same Network + Different Networks)**
   - **Same Wi-Fi / Hotspot / Wired LAN**: Automatic UDP discovery on port `47777` (zero IP typing — 1-click **JOIN**)
   - **Different Networks / Friends Online**: 1-click shareable **Join Code (`IV-...`)** selector (Wi-Fi / LAN / VPN Tunnel / Public IP) + optional **Room Password Authentication** (`RoomPasswordAuthenticator`)
@@ -54,7 +55,7 @@
 | `C` / `Ctrl` | Crouch (press while sprinting to Slide) |
 | `Space` | Jump / Vehicle Handbrake / Next Spectate Target |
 | `LMB` / `RMB` | Fire / Aim Down Sights (ADS) |
-| `R` | Reload |
+| `R` / `V` | Reload / Inspect Weapon |
 | `1` / `2` / `Scroll` | Switch Primary / Sidearm |
 | `G` | Throw Frag Grenade |
 | `F` | Call/Ride Elevator (`G`/`1F`/`2F`), Plant/Defuse Bomb (S&D), or Enter/Exit Vehicle |

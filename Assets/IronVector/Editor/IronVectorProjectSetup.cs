@@ -189,9 +189,7 @@ namespace IronVector.Editor
 
         static NetworkObject CreatePlayerPrefab(WeaponDatabase db)
         {
-            Material matBody = GetOrCreatePbrMat("Mat_PlayerBody", new Color(0.26f, 0.30f, 0.34f), 0.28f);
-            Material matHead = GetOrCreatePbrMat("Mat_PlayerHead", new Color(0.82f, 0.72f, 0.62f), 0.2f);
-            Material matVisor = GetOrCreatePbrMat("Mat_Visor", new Color(0.08f, 0.10f, 0.12f), 0.8f, 0.5f);
+            Material matBody = GetOrCreatePbrMat("Mat_PlayerBody", new Color(0.18f, 0.24f, 0.34f), 0.28f);
 
             var root = new GameObject("Player");
             root.AddComponent<NetworkObject>();
@@ -215,6 +213,7 @@ namespace IronVector.Editor
             root.AddComponent<PlayerBombInteraction>();
             root.AddComponent<PlayerElevatorInteraction>();
 
+            // Invisible hit/anchor capsule + realistic multi-part SoldierRig
             var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             Object.DestroyImmediate(body.GetComponent<Collider>());
             body.name = "Body";
@@ -222,6 +221,7 @@ namespace IronVector.Editor
             body.transform.localPosition = new Vector3(0f, 0.8f, 0f);
             body.transform.localScale = new Vector3(0.7f, 0.8f, 0.7f);
             body.GetComponent<Renderer>().sharedMaterial = matBody;
+            body.GetComponent<Renderer>().enabled = false;
 
             var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             head.name = "Head";
@@ -229,16 +229,13 @@ namespace IronVector.Editor
             head.transform.localPosition = new Vector3(0f, 1.62f, 0f);
             head.transform.localScale = Vector3.one * 0.38f;
             head.GetComponent<Collider>().isTrigger = true;
-            head.GetComponent<Renderer>().sharedMaterial = matHead;
+            head.GetComponent<Renderer>().enabled = false;
             head.AddComponent<Hitbox>().isHead = true;
 
-            var visor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.DestroyImmediate(visor.GetComponent<Collider>());
-            visor.name = "Visor";
-            visor.transform.SetParent(head.transform, false);
-            visor.transform.localPosition = new Vector3(0f, 0.06f, 0.42f);
-            visor.transform.localScale = new Vector3(0.68f, 0.24f, 0.25f);
-            visor.GetComponent<Renderer>().sharedMaterial = matVisor;
+            var soldierRefs = SoldierVisualBuilder.Build(root.transform, head.transform, lobbyPose: false,
+                new Color(0.18f, 0.25f, 0.35f), Teams.TeamColor(Teams.Alpha),
+                (key, col, sm, met, tex, em) => GetOrCreatePbrMat("Mat_Soldier_" + key, col, sm, met, em));
+            motor.BindSoldierRig(soldierRefs.LeftLegPivot, soldierRefs.RightLegPivot, soldierRefs.TorsoPivot);
 
             var pivot = new GameObject("CameraPivot");
             pivot.transform.SetParent(root.transform, false);
@@ -262,7 +259,7 @@ namespace IronVector.Editor
 
             var weaponHolder = new GameObject("WeaponHolder");
             weaponHolder.transform.SetParent(pivot.transform, false);
-            weaponHolder.transform.localPosition = new Vector3(0.24f, -0.22f, 0.45f);
+            weaponHolder.transform.localPosition = new Vector3(0.21f, -0.19f, 0.44f);
 
             motor.cameraPivot = pivot.transform;
             motor.bodyVisual = body.transform;
@@ -558,17 +555,19 @@ namespace IronVector.Editor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             SetupEnvironment(new Color(0.68f, 0.79f, 0.92f), new Color(0.48f, 0.47f, 0.42f), 52f, -26f, 2.1f, "AdminHallVolumeProfile");
 
-            // Authentic Sri Lankan University Campus Palette
-            Material matCreamWall = GetOrCreatePbrMat("Mat_AdminCreamWall", new Color(0.90f, 0.87f, 0.80f), 0.16f);
-            Material matTerracotta = GetOrCreatePbrMat("Mat_AdminTerracotta", new Color(0.62f, 0.28f, 0.18f), 0.22f);
-            Material matGraniteFloor = GetOrCreateTileMat("Mat_AdminMarble", new Color(0.84f, 0.80f, 0.74f), new Color(0.70f, 0.67f, 0.61f), 0.56f, 22f);
-            Material matTeakWood = GetOrCreateTileMat("Mat_AdminWood", new Color(0.40f, 0.23f, 0.12f), new Color(0.30f, 0.16f, 0.08f), 0.42f, 8f);
-            Material matSlateSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.24f, 0.28f, 0.32f), 0.55f, 0.45f);
-            Material matBlueGlass = GetOrCreatePbrMat("Mat_AdminGlass", new Color(0.16f, 0.34f, 0.48f), 0.88f, 0.25f);
-            Material matLawn = GetOrCreateTileMat("Mat_CampusLawn", new Color(0.28f, 0.44f, 0.22f), new Color(0.24f, 0.39f, 0.19f), 0.08f, 34f);
-            Material matDriveway = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.56f, 0.54f, 0.50f), new Color(0.46f, 0.45f, 0.42f), 0.14f, 20f);
-            Material matServerGlow = GetOrCreatePbrMat("Mat_ServerRack", new Color(0.10f, 0.13f, 0.18f), 0.5f, 0.4f, new Color(0.12f, 0.50f, 0.95f));
-            Material matCeilingLight = GetOrCreatePbrMat("Mat_CeilingLight", Color.white, 0.9f, 0f, new Color(1.6f, 1.55f, 1.45f));
+            // Vivid Sri Lankan University Campus Palette (Rich, Crisp & High Contrast)
+            Material matCreamWall = GetOrCreatePbrMat("Mat_AdminCreamWall", new Color(0.95f, 0.90f, 0.78f), 0.22f);
+            Material matTerracotta = GetOrCreatePbrMat("Mat_AdminTerracotta", new Color(0.76f, 0.30f, 0.16f), 0.28f);
+            Material matGraniteFloor = GetOrCreateTileMat("Mat_AdminMarble", new Color(0.88f, 0.83f, 0.76f), new Color(0.68f, 0.63f, 0.56f), 0.62f, 22f);
+            Material matTeakWood = GetOrCreateTileMat("Mat_AdminWood", new Color(0.54f, 0.30f, 0.14f), new Color(0.36f, 0.18f, 0.08f), 0.48f, 8f);
+            Material matSlateSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.28f, 0.33f, 0.39f), 0.62f, 0.55f);
+            Material matBlueGlass = GetOrCreatePbrMat("Mat_AdminGlass", new Color(0.18f, 0.48f, 0.74f), 0.92f, 0.35f);
+            Material matLawn = GetOrCreateTileMat("Mat_CampusLawn", new Color(0.22f, 0.52f, 0.18f), new Color(0.17f, 0.44f, 0.14f), 0.10f, 28f);
+            Material matDriveway = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.56f, 0.53f, 0.48f), new Color(0.44f, 0.42f, 0.39f), 0.18f, 20f);
+            Material matServerGlow = GetOrCreatePbrMat("Mat_ServerRack", new Color(0.10f, 0.14f, 0.20f), 0.55f, 0.45f, new Color(0.15f, 0.62f, 1.0f));
+            Material matCeilingLight = GetOrCreatePbrMat("Mat_CeilingLight", Color.white, 0.9f, 0f, new Color(1.75f, 1.70f, 1.55f));
+            Material matAlphaBanner = GetOrCreatePbrMat("Mat_AlphaTrim", Teams.TeamColor(Teams.Alpha), 0.35f);
+            Material matBravoBanner = GetOrCreatePbrMat("Mat_BravoTrim", Teams.TeamColor(Teams.Bravo), 0.35f);
 
             var root = new GameObject("Map_AdminHall_Kilinochchi");
 
@@ -643,18 +642,24 @@ namespace IronVector.Editor
             Block(root.transform, "2F_SeminarDesk_W", new Vector3(-18f, 8.9f, 9f), new Vector3(6.0f, 1.0f, 2.2f), matTeakWood);
             BoxBounds(root.transform, "2F_LecturePartition_W", -24f, -12f, 8.4f, 11.8f, 0f, 0.5f, matCreamWall);
 
-            // Exterior Campus Courtyard Planters & Benches
+            // Exterior Campus Courtyard Planters, Benches, Team Wing Banners & Lush Foliage
             Block(root.transform, "ForecourtPlanter_W", new Vector3(-22f, 0.65f, -34f), new Vector3(6f, 1.3f, 2.4f), matDriveway);
             Block(root.transform, "ForecourtPlanter_E", new Vector3(22f, 0.65f, -34f), new Vector3(6f, 1.3f, 2.4f), matDriveway);
             Block(root.transform, "CourtyardMonument", new Vector3(0f, 0.7f, -37f), new Vector3(5.5f, 1.4f, 4.5f), matTerracotta);
+            Block(root.transform, "WingBanner_Alpha_W", new Vector3(-36.6f, 6.2f, -12f), new Vector3(0.25f, 3.8f, 2.2f), matAlphaBanner);
+            Block(root.transform, "WingBanner_Bravo_E", new Vector3(36.6f, 6.2f, -12f), new Vector3(0.25f, 3.8f, 2.2f), matBravoBanner);
 
-            // Interior Lighting across GF, 1F, 2F
+            var foliage = new GameObject("OutsideFoliage");
+            foliage.transform.SetParent(root.transform, false);
+            WorldPropsBuilder.PopulateAdminHallExterior(foliage.transform, (n, col, sm, met, em) => GetOrCreatePbrMat(n, col, sm, met, em));
+
+            // Bright Interior Daylight Lighting across GF, 1F, 2F
             for (int f = 0; f < 3; f++)
             {
                 float ly = f * 4.2f + 3.4f;
-                AddPointLight(root.transform, $"Light_F{f}_Atrium", new Vector3(0f, ly, -14f), new Color(1f, 0.96f, 0.88f), 26f, 2.8f);
-                AddPointLight(root.transform, $"Light_F{f}_West", new Vector3(-20f, ly, 4f), new Color(0.95f, 0.97f, 1.0f), 24f, 2.5f);
-                AddPointLight(root.transform, $"Light_F{f}_East", new Vector3(20f, ly, 4f), new Color(1f, 0.95f, 0.88f), 24f, 2.5f);
+                AddPointLight(root.transform, $"Light_F{f}_Atrium", new Vector3(0f, ly, -14f), new Color(1f, 0.97f, 0.90f), 32f, 5.2f);
+                AddPointLight(root.transform, $"Light_F{f}_West", new Vector3(-20f, ly, 4f), new Color(0.95f, 0.98f, 1.0f), 30f, 4.8f);
+                AddPointLight(root.transform, $"Light_F{f}_East", new Vector3(20f, ly, 4f), new Color(1f, 0.96f, 0.90f), 30f, 4.8f);
                 BuildPart(root.transform, $"LampPanel_F{f}_W", PrimitiveType.Cube, new Vector3(-20f, ly + 0.35f, 4f), new Vector3(3.5f, 0.1f, 0.8f), matCeilingLight);
                 BuildPart(root.transform, $"LampPanel_F{f}_E", PrimitiveType.Cube, new Vector3(20f, ly + 0.35f, 4f), new Vector3(3.5f, 0.1f, 0.8f), matCeilingLight);
             }
@@ -857,12 +862,12 @@ namespace IronVector.Editor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             SetupEnvironment(new Color(0.65f, 0.74f, 0.86f), new Color(0.48f, 0.47f, 0.44f), 46f, -32f, 1.9f, "ArenaVolumeProfile");
 
-            Material matFloor = GetOrCreateTileMat("Mat_ArenaFloor", new Color(0.46f, 0.44f, 0.40f), new Color(0.40f, 0.38f, 0.34f), 0.14f, 28f);
-            Material matRoad = GetOrCreateTileMat("Mat_Asphalt", new Color(0.20f, 0.21f, 0.23f), new Color(0.16f, 0.17f, 0.19f), 0.20f, 20f);
-            Material matWall = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.56f, 0.55f, 0.52f), new Color(0.47f, 0.46f, 0.44f), 0.12f, 14f);
-            Material matSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.32f, 0.35f, 0.38f), 0.55f, 0.4f);
-            Material matContainerRed = GetOrCreateTileMat("Mat_ContainerRust", new Color(0.52f, 0.24f, 0.18f), new Color(0.42f, 0.18f, 0.14f), 0.25f, 6f);
-            Material matContainerBlue = GetOrCreateTileMat("Mat_ContainerNavy", new Color(0.18f, 0.29f, 0.40f), new Color(0.14f, 0.22f, 0.32f), 0.25f, 6f);
+            Material matFloor = GetOrCreateTileMat("Mat_ArenaFloor", new Color(0.64f, 0.54f, 0.40f), new Color(0.52f, 0.42f, 0.30f), 0.16f, 28f);
+            Material matRoad = GetOrCreateTileMat("Mat_Asphalt", new Color(0.20f, 0.22f, 0.25f), new Color(0.15f, 0.16f, 0.18f), 0.22f, 20f);
+            Material matWall = GetOrCreateTileMat("Mat_ConcreteGrid", new Color(0.62f, 0.59f, 0.54f), new Color(0.49f, 0.46f, 0.42f), 0.14f, 14f);
+            Material matSteel = GetOrCreatePbrMat("Mat_Steel", new Color(0.32f, 0.36f, 0.42f), 0.62f, 0.55f);
+            Material matContainerRed = GetOrCreateTileMat("Mat_ContainerRust", new Color(0.74f, 0.28f, 0.18f), new Color(0.58f, 0.20f, 0.12f), 0.28f, 6f);
+            Material matContainerBlue = GetOrCreateTileMat("Mat_ContainerNavy", new Color(0.18f, 0.42f, 0.68f), new Color(0.12f, 0.30f, 0.52f), 0.28f, 6f);
             Material matAlphaTint = GetOrCreatePbrMat("Mat_AlphaTrim", Teams.TeamColor(Teams.Alpha), 0.35f);
             Material matBravoTint = GetOrCreatePbrMat("Mat_BravoTrim", Teams.TeamColor(Teams.Bravo), 0.35f);
 
@@ -911,6 +916,10 @@ namespace IronVector.Editor
             Block(map.transform, "Container5", new Vector3(26f, 1.5f, -20f), new Vector3(2.8f, 3.0f, 7.5f), matContainerRed);
             Block(map.transform, "CqbCrates", new Vector3(0f, 0.75f, -20f), new Vector3(3.2f, 1.5f, 3.2f), matWall);
 
+            var arenaFoliage = new GameObject("OutsideFoliage");
+            arenaFoliage.transform.SetParent(map.transform, false);
+            WorldPropsBuilder.PopulateArenaExterior(arenaFoliage.transform, (n, col, sm, met, em) => GetOrCreatePbrMat(n, col, sm, met, em));
+
             var markers = new GameObject("MapMarkers");
             Transform[] alphaSpawns =
             {
@@ -958,14 +967,33 @@ namespace IronVector.Editor
 
         static void SetupEnvironment(Color sky, Color eq, float pitch, float yaw, float intensity, string profileName)
         {
+            Shader skySh = Shader.Find("Skybox/Procedural");
+            if (skySh != null)
+            {
+                string skyPath = $"{MaterialsDir}/Mat_{profileName}_Sky.mat";
+                Material skyMat = AssetDatabase.LoadAssetAtPath<Material>(skyPath);
+                if (skyMat == null)
+                {
+                    skyMat = new Material(skySh) { name = "Mat_" + profileName + "_Sky" };
+                    AssetDatabase.CreateAsset(skyMat, skyPath);
+                }
+                if (skyMat.HasProperty("_SkyTint")) skyMat.SetColor("_SkyTint", sky);
+                if (skyMat.HasProperty("_GroundColor")) skyMat.SetColor("_GroundColor", eq);
+                if (skyMat.HasProperty("_AtmosphereThickness")) skyMat.SetFloat("_AtmosphereThickness", 0.90f);
+                if (skyMat.HasProperty("_Exposure")) skyMat.SetFloat("_Exposure", profileName.Contains("MainMenu") ? 0.65f : 1.25f);
+                EditorUtility.SetDirty(skyMat);
+                RenderSettings.skybox = skyMat;
+            }
+
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = sky;
             RenderSettings.ambientEquatorColor = eq;
-            RenderSettings.ambientGroundColor = new Color(0.22f, 0.21f, 0.20f);
+            RenderSettings.ambientGroundColor = new Color(0.24f, 0.22f, 0.20f);
+            RenderSettings.ambientIntensity = 1.25f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = Color.Lerp(sky, eq, 0.55f);
-            RenderSettings.fogDensity = 0.0022f;
+            RenderSettings.fogColor = Color.Lerp(sky, eq, 0.45f);
+            RenderSettings.fogDensity = 0.0014f;
 
             var sunGo = new GameObject("Directional Light");
             var sun = sunGo.AddComponent<Light>();
@@ -985,18 +1013,19 @@ namespace IronVector.Editor
             AssetDatabase.CreateAsset(profile, volPath);
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.intensity.Override(0.45f);
-            bloom.threshold.Override(1.0f);
+            bloom.intensity.Override(0.38f);
+            bloom.threshold.Override(1.05f);
 
             var tonemap = profile.Add<Tonemapping>(true);
             tonemap.mode.Override(TonemappingMode.ACES);
 
             var colorAdj = profile.Add<ColorAdjustments>(true);
-            colorAdj.contrast.Override(12f);
-            colorAdj.saturation.Override(10f);
+            colorAdj.contrast.Override(16f);
+            colorAdj.saturation.Override(24f);
+            colorAdj.postExposure.Override(0.15f);
 
             var vig = profile.Add<Vignette>(true);
-            vig.intensity.Override(0.18f);
+            vig.intensity.Override(0.14f);
 
             vol.sharedProfile = profile;
             EditorUtility.SetDirty(profile);
@@ -1054,11 +1083,14 @@ namespace IronVector.Editor
         static Material GetOrCreatePbrMat(string name, Color color, float smoothness = 0.25f, float metallic = 0f, Color? emission = null)
         {
             string path = $"{MaterialsDir}/{name}.mat";
-            Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (existing != null) return existing;
+            Material mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool created = mat == null;
+            if (created)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                mat = new Material(shader) { name = name, enableInstancing = true };
+            }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var mat = new Material(shader) { name = name, enableInstancing = true };
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
             else mat.color = color;
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
@@ -1068,16 +1100,13 @@ namespace IronVector.Editor
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", emission.Value);
             }
-            AssetDatabase.CreateAsset(mat, path);
+            if (created) AssetDatabase.CreateAsset(mat, path);
+            else EditorUtility.SetDirty(mat);
             return mat;
         }
 
         static Material GetOrCreateTileMat(string name, Color baseCol, Color lineCol, float smoothness, float tiling)
         {
-            string path = $"{MaterialsDir}/{name}.mat";
-            Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (existing != null) return existing;
-
             Texture2D tex = GetOrCreateGridTexture(name + "_Tex", baseCol, lineCol);
             Material mat = GetOrCreatePbrMat(name, Color.white, smoothness);
             if (mat.HasProperty("_BaseMap"))
@@ -1098,9 +1127,9 @@ namespace IronVector.Editor
         {
             string texPath = $"{TexturesDir}/{name}.asset";
             Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
-            if (existing != null) return existing;
+            if (existing != null) AssetDatabase.DeleteAsset(texPath);
 
-            const int size = 128;
+            const int size = 256;
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, true)
             {
                 name = name,
@@ -1108,18 +1137,35 @@ namespace IronVector.Editor
                 filterMode = FilterMode.Bilinear
             };
 
+            bool isGrass = name.Contains("Lawn");
+            bool isWood = name.Contains("Wood");
             var rng = new System.Random(name.GetHashCode());
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    bool border = x < 3 || y < 3 || (x >= 63 && x <= 64) || (y >= 63 && y <= 64);
-                    float grain = ((float)rng.NextDouble() - 0.5f) * 0.06f;
-                    Color c = border ? lineCol : baseCol;
-                    tex.SetPixel(x, y, new Color(
-                        Mathf.Clamp01(c.r + grain),
-                        Mathf.Clamp01(c.g + grain),
-                        Mathf.Clamp01(c.b + grain), 1f));
+                    Color c;
+                    if (isGrass)
+                    {
+                        float patch = Mathf.PerlinNoise(x * 0.06f, y * 0.06f);
+                        float blade = ((float)rng.NextDouble() - 0.5f) * 0.09f;
+                        c = Color.Lerp(lineCol, baseCol, patch);
+                        c = new Color(Mathf.Clamp01(c.r + blade), Mathf.Clamp01(c.g + blade), Mathf.Clamp01(c.b + blade), 1f);
+                    }
+                    else if (isWood)
+                    {
+                        float wave = Mathf.Sin(y * 0.22f + Mathf.Sin(x * 0.10f) * 2.5f) * 0.5f + 0.5f;
+                        bool plankSeam = (y % 64) < 2;
+                        c = plankSeam ? lineCol * 0.85f : Color.Lerp(lineCol, baseCol, wave);
+                    }
+                    else
+                    {
+                        bool border = x < 4 || y < 4 || (x >= 127 && x <= 129) || (y >= 127 && y <= 129);
+                        float grain = ((float)rng.NextDouble() - 0.5f) * 0.07f;
+                        Color raw = border ? lineCol : baseCol;
+                        c = new Color(Mathf.Clamp01(raw.r + grain), Mathf.Clamp01(raw.g + grain), Mathf.Clamp01(raw.b + grain), 1f);
+                    }
+                    tex.SetPixel(x, y, c);
                 }
             }
             tex.Apply();

@@ -115,6 +115,10 @@ namespace IronVector
 
         void DrawCrosshair(PlayerIdentity local)
         {
+            float ads = local.Weapons != null ? local.Weapons.AdsAmount : 0f;
+            float hipAlpha = 1f - Mathf.Clamp01((ads - 0.12f) * 3.8f);
+            if (hipAlpha <= 0.02f) return;
+
             float spread = local.Weapons != null ? local.Weapons.CurrentSpreadDegrees : 1.5f;
             float gap = Mathf.Clamp(6f + spread * 7.5f, 5f, 44f);
             float cx = Screen.width * 0.5f;
@@ -122,7 +126,9 @@ namespace IronVector
             float len = 9f;
             float thick = 2f;
 
-            GUI.color = new Color(1f, 1f, 1f, 0.86f);
+            Color c = LocalProfile.CrosshairColor;
+            c.a *= hipAlpha;
+            GUI.color = c;
             GUI.DrawTexture(new Rect(cx - gap - len, cy - thick * 0.5f, len, thick), _whiteTex);
             GUI.DrawTexture(new Rect(cx + gap, cy - thick * 0.5f, len, thick), _whiteTex);
             GUI.DrawTexture(new Rect(cx - thick * 0.5f, cy - gap - len, thick, len), _whiteTex);
@@ -135,18 +141,30 @@ namespace IronVector
         {
             float cx = Screen.width * 0.5f;
             float cy = Screen.height * 0.5f;
-            float r = Mathf.Min(Screen.width, Screen.height) * 0.39f;
+            float d = Mathf.Min(Screen.width, Screen.height) * 0.88f;
+            float r = d * 0.5f;
 
-            GUI.color = new Color(0f, 0f, 0f, 0.90f);
+            // Black surround outside circular scope lens
+            GUI.color = new Color(0.01f, 0.01f, 0.02f, 0.96f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, cy - r), _whiteTex);
             GUI.DrawTexture(new Rect(0, cy + r, Screen.width, Screen.height - (cy + r)), _whiteTex);
-            GUI.DrawTexture(new Rect(0, cy - r, cx - r, r * 2f), _whiteTex);
-            GUI.DrawTexture(new Rect(cx + r, cy - r, Screen.width - (cx + r), r * 2f), _whiteTex);
+            GUI.DrawTexture(new Rect(0, cy - r, cx - r, d), _whiteTex);
+            GUI.DrawTexture(new Rect(cx + r, cy - r, Screen.width - (cx + r), d), _whiteTex);
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(cx - r, cy - r, d, d), TacticalGuiTheme.ScopeMaskTex);
 
-            GUI.color = new Color(0.06f, 0.06f, 0.06f, 0.92f);
-            GUI.DrawTexture(new Rect(cx - r, cy - 1f, r * 2f, 2f), _whiteTex);
-            GUI.DrawTexture(new Rect(cx - 1f, cy - r, 2f, r * 2f), _whiteTex);
-            GUI.color = new Color(1f, 0.25f, 0.25f, 0.95f);
+            // Fine Mil-Dot Crosshairs + Graduated Stadia Ticks
+            GUI.color = new Color(0.05f, 0.05f, 0.06f, 0.94f);
+            GUI.DrawTexture(new Rect(cx - r * 0.92f, cy - 0.8f, r * 1.84f, 1.6f), _whiteTex);
+            GUI.DrawTexture(new Rect(cx - 0.8f, cy - r * 0.92f, 1.6f, r * 1.84f), _whiteTex);
+            for (int t = -4; t <= 4; t++)
+            {
+                if (t == 0) continue;
+                float off = t * (r * 0.14f);
+                GUI.DrawTexture(new Rect(cx + off - 0.7f, cy - 5f, 1.4f, 10f), _whiteTex);
+                GUI.DrawTexture(new Rect(cx - 5f, cy + off - 0.7f, 10f, 1.4f), _whiteTex);
+            }
+            GUI.color = new Color(1f, 0.22f, 0.22f, 0.95f);
             GUI.DrawTexture(new Rect(cx - 2f, cy - 2f, 4f, 4f), _whiteTex);
             GUI.color = Color.white;
         }
@@ -283,15 +301,12 @@ namespace IronVector
 
         void DrawRadar(PlayerIdentity local)
         {
-            float size = 144f;
+            float size = 148f;
             float pad = 16f;
             Vector2 center = new Vector2(pad + size * 0.5f, pad + size * 0.5f);
 
-            GUI.color = new Color(0.05f, 0.08f, 0.11f, 0.78f);
-            GUI.DrawTexture(new Rect(pad, pad, size, size), _circleTex);
-            GUI.color = new Color(1f, 1f, 1f, 0.2f);
-            GUI.DrawTexture(new Rect(center.x - size * 0.45f, center.y, size * 0.9f, 1f), _whiteTex);
-            GUI.DrawTexture(new Rect(center.x, center.y - size * 0.45f, 1f, size * 0.9f), _whiteTex);
+            GUI.DrawTexture(new Rect(pad, pad, size, size), TacticalGuiTheme.RadarRingTex);
+            GUI.Label(new Rect(center.x - 10f, pad + 2f, 20f, 14f), "N", _boldCenter);
 
             float range = 65f;
             float invYaw = -local.transform.eulerAngles.y * Mathf.Deg2Rad;
@@ -526,31 +541,42 @@ namespace IronVector
         void DrawPauseMenu(PlayerIdentity local)
         {
             DrawRect(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.62f));
-            Rect r = new Rect(Screen.width * 0.5f - 260f, Screen.height * 0.5f - 245f, 520f, 490f);
-            TacticalGuiTheme.DrawGlassPanel(r, new Color(0.06f, 0.08f, 0.11f, 0.96f), TacticalGuiTheme.AccentAmber);
+            Rect r = new Rect(Screen.width * 0.5f - 280f, Screen.height * 0.5f - 265f, 560f, 530f);
+            TacticalGuiTheme.DrawGlassPanel(r, new Color(0.06f, 0.08f, 0.11f, 0.96f), TacticalGuiTheme.AccentAmber, brackets: true);
 
-            GUILayout.BeginArea(new Rect(r.x + 22f, r.y + 18f, r.width - 44f, r.height - 36f));
-            GUILayout.Label("PAUSED — SETTINGS & LOADOUT", _bigBanner);
-            GUILayout.Space(8);
-
-            GUILayout.Label("Graphics Preset", _boldLeft);
-            LocalProfile.GraphicsQuality = GUILayout.Toolbar(LocalProfile.GraphicsQuality, GraphicsSettingsManager.PresetNames, GUILayout.Height(26));
+            GUILayout.BeginArea(new Rect(r.x + 22f, r.y + 16f, r.width - 44f, r.height - 32f));
+            GUILayout.Label("PAUSED — GRAPHICS, AIM & LOADOUT", _bigBanner);
             GUILayout.Space(6);
 
+            GUILayout.Label("Graphics Preset", _boldLeft);
+            LocalProfile.GraphicsQuality = GUILayout.Toolbar(LocalProfile.GraphicsQuality, GraphicsSettingsManager.PresetNames, GUILayout.Height(25));
+            GUILayout.Space(4);
+
+            GUILayout.Label("Crosshair Color", _boldLeft);
+            LocalProfile.CrosshairColorIndex = GUILayout.Toolbar(LocalProfile.CrosshairColorIndex, TacticalGuiTheme.CrosshairNames, GUILayout.Height(23));
+            GUILayout.Space(4);
+
             GUILayout.BeginHorizontal();
-            LocalProfile.ShowHud = GUILayout.Toggle(LocalProfile.ShowHud, " Show HUD (Key: H)");
+            LocalProfile.ShowHud = GUILayout.Toggle(LocalProfile.ShowHud, " Show HUD (H)");
             LocalProfile.VSync = GUILayout.Toggle(LocalProfile.VSync, " VSync");
             LocalProfile.ShowPerformance = GUILayout.Toggle(LocalProfile.ShowPerformance, " FPS");
             GUILayout.EndHorizontal();
-            GUILayout.Space(8);
+            GUILayout.Space(6);
 
-            GUILayout.Label($"Sensitivity: {LocalProfile.Sensitivity:0.0}   |   FOV: {LocalProfile.FieldOfView:0}", _boldLeft);
+            GUILayout.Label($"Brightness: {LocalProfile.Brightness:+0.00;-0.00;0.00}   |   FOV: {LocalProfile.FieldOfView:0}°", _boldLeft);
             GUILayout.BeginHorizontal();
-            LocalProfile.Sensitivity = GUILayout.HorizontalSlider(LocalProfile.Sensitivity, 0.4f, 8f);
+            LocalProfile.Brightness = GUILayout.HorizontalSlider(LocalProfile.Brightness, -0.5f, 0.9f);
             GUILayout.Space(10);
             LocalProfile.FieldOfView = GUILayout.HorizontalSlider(LocalProfile.FieldOfView, 65f, 110f);
             GUILayout.EndHorizontal();
+
+            GUILayout.Label($"Hip Sens: {LocalProfile.Sensitivity:0.0}   |   ADS Sens: {LocalProfile.AdsSensitivity:0.00}x", _boldLeft);
+            GUILayout.BeginHorizontal();
+            LocalProfile.Sensitivity = GUILayout.HorizontalSlider(LocalProfile.Sensitivity, 0.4f, 8f);
             GUILayout.Space(10);
+            LocalProfile.AdsSensitivity = GUILayout.HorizontalSlider(LocalProfile.AdsSensitivity, 0.2f, 1.25f);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8);
 
             GUILayout.Label("Change Loadout & Strategy (Applies next Spawn)", _boldLeft);
             int pIdx = GUILayout.SelectionGrid(Mathf.Clamp(LocalProfile.PrimaryWeapon, 0, WeaponDatabase.PrimaryLabels.Length - 1), WeaponDatabase.PrimaryLabels, 2);

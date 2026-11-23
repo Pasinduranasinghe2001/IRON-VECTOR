@@ -360,9 +360,9 @@ namespace IronVector
             float leftW = Mathf.Clamp(sw * 0.25f, 265f, 345f);
             float rightW = Mathf.Clamp(sw * 0.27f, 285f, 365f);
 
-            // LEFT TOP: DAILY CHALLENGES CARD (matching screenshot's "STOCKS / DAILY CHALLENGES")
+            // LEFT TOP: DAILY CHALLENGES CARD (COD4 styling w/ tactical corner brackets)
             Rect chalRect = new Rect(16f, 64f, leftW, Mathf.Min(230f, sh * 0.36f));
-            TacticalGuiTheme.DrawGlassPanel(chalRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentAmber);
+            TacticalGuiTheme.DrawGlassPanel(chalRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentAmber, brackets: true);
             GUI.Label(new Rect(chalRect.x + 12f, chalRect.y + 7f, leftW - 24f, 18f), "DAILY TACTICAL CHALLENGES", TacticalGuiTheme.SubGoldStyle);
 
             float rowY = chalRect.y + 30f;
@@ -385,7 +385,7 @@ namespace IronVector
             // LEFT BOTTOM: GRAPHICAL MAP SELECT + GAME MODE (matching screenshot's bottom-left map cards)
             float mapBoxH = Mathf.Clamp(sh * 0.36f, 215f, 260f);
             Rect mapRect = new Rect(16f, sh - mapBoxH - 16f, leftW, mapBoxH);
-            TacticalGuiTheme.DrawGlassPanel(mapRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentCyan);
+            TacticalGuiTheme.DrawGlassPanel(mapRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentCodGreen, brackets: true);
             GUI.Label(new Rect(mapRect.x + 12f, mapRect.y + 7f, leftW - 24f, 18f), "MAP SELECTION · OPERATIONS", TacticalGuiTheme.SubGoldStyle);
 
             float cardH = (mapBoxH - 86f) * 0.5f;
@@ -409,7 +409,7 @@ namespace IronVector
             {
                 float barW = Mathf.Clamp(centerAvail, 260f, 410f);
                 Rect bar = new Rect(leftW + 32f + (centerAvail - barW) * 0.5f, sh - 102f, barW, 86f);
-                TacticalGuiTheme.DrawGlassPanel(bar, TacticalGuiTheme.GlassCard, TacticalGuiTheme.AccentAmber);
+                TacticalGuiTheme.DrawGlassPanel(bar, TacticalGuiTheme.GlassCard, TacticalGuiTheme.AccentAmber, brackets: true);
 
                 string mapTitle = MapCatalog.DisplayNames[Mathf.Clamp(_selectedMap, 0, MapCatalog.DisplayNames.Length - 1)];
                 string modeTitle = GameModeInfo.Names[Mathf.Clamp(_selectedMode, 0, GameModeInfo.Names.Length - 1)];
@@ -425,7 +425,7 @@ namespace IronVector
 
             // RIGHT COLUMN: LOBBY ROSTER + LAN DISCOVERY + INVITE CODE / PASSWORD
             Rect lobbyRect = new Rect(sw - rightW - 16f, 64f, rightW, sh - 80f);
-            TacticalGuiTheme.DrawGlassPanel(lobbyRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentAmber);
+            TacticalGuiTheme.DrawGlassPanel(lobbyRect, TacticalGuiTheme.GlassDark, TacticalGuiTheme.AccentAmber, brackets: true);
             DrawRightLobbyColumn(lobbyRect);
         }
 
@@ -704,8 +704,8 @@ namespace IronVector
             GUILayout.Space(10);
             GUILayout.Label("TACTICAL KEYBINDS", TacticalGuiTheme.SubGoldStyle);
             GUILayout.Label(
-                "WASD: Move / Drive   ·   Shift: Sprint   ·   C / Ctrl: Crouch & Slide   ·   Space: Jump / Handbrake\n" +
-                "LMB / RMB: Fire / ADS   ·   R: Reload   ·   1 / 2 / Scroll: Switch Gun   ·   G: Frag Grenade\n" +
+                "WASD: Move / Drive   ·   Shift: Sprint / Hold Breath (Sniper)   ·   C / Ctrl: Crouch & Slide   ·   Space: Jump / Handbrake\n" +
+                "LMB / RMB: Fire / ADS   ·   R: Reload   ·   V: Inspect Weapon   ·   1 / 2 / Scroll: Switch Gun   ·   G: Frag Grenade\n" +
                 "F: Call/Ride AdminHall Elevators (G / 1F / 2F), Plant/Defuse Bomb (S&D), or Enter/Exit Vehicle\n" +
                 "H: Toggle Combat HUD On/Off   ·   Tab: Scoreboard   ·   Esc: Pause & Live Settings",
                 TacticalGuiTheme.BodyStyle);
@@ -719,43 +719,55 @@ namespace IronVector
         void DrawSettingsOverlay(float sw, float sh)
         {
             float w = Mathf.Min(780f, sw - 40f);
-            float h = Mathf.Min(480f, sh - 90f);
-            Rect panel = new Rect((sw - w) * 0.5f, 66f, w, h);
-            TacticalGuiTheme.DrawGlassPanel(panel, new Color(0.05f, 0.07f, 0.10f, 0.90f), TacticalGuiTheme.AccentCyan);
+            float h = Mathf.Min(500f, sh - 84f);
+            Rect panel = new Rect((sw - w) * 0.5f, 62f, w, h);
+            TacticalGuiTheme.DrawGlassPanel(panel, new Color(0.05f, 0.08f, 0.11f, 0.92f), TacticalGuiTheme.AccentCodGreen, brackets: true);
 
-            GUILayout.BeginArea(new Rect(panel.x + 20f, panel.y + 16f, w - 40f, h - 32f));
-            GUILayout.Label("GRAPHICS, DISPLAY & INPUT SETTINGS", TacticalGuiTheme.TitleStyle);
-            GUILayout.Space(12);
+            GUILayout.BeginArea(new Rect(panel.x + 20f, panel.y + 14f, w - 40f, h - 28f));
+            GUILayout.Label("GRAPHICS, AIM & DISPLAY SETTINGS", TacticalGuiTheme.TitleStyle);
+            GUILayout.Space(8);
 
             GUILayout.Label("URP Render Quality Preset", TacticalGuiTheme.SubGoldStyle);
-            LocalProfile.GraphicsQuality = GUILayout.Toolbar(LocalProfile.GraphicsQuality, GraphicsSettingsManager.PresetNames, GUILayout.Height(30));
-            GUILayout.Space(10);
+            LocalProfile.GraphicsQuality = GUILayout.Toolbar(LocalProfile.GraphicsQuality, GraphicsSettingsManager.PresetNames, GUILayout.Height(28));
+            GUILayout.Space(8);
 
             GUILayout.Label("Target Frame Rate Cap", TacticalGuiTheme.SubGoldStyle);
             int[] fpsOpts = { 60, 120, 144, 0 };
             string[] fpsLabels = { "60 FPS", "120 FPS", "144 FPS", "Unlimited" };
             int curFps = Array.IndexOf(fpsOpts, LocalProfile.TargetFps);
             if (curFps < 0) curFps = 2;
-            int newFps = GUILayout.Toolbar(curFps, fpsLabels, GUILayout.Height(28));
+            int newFps = GUILayout.Toolbar(curFps, fpsLabels, GUILayout.Height(26));
             if (newFps != curFps) LocalProfile.TargetFps = fpsOpts[newFps];
-            GUILayout.Space(12);
+            GUILayout.Space(8);
+
+            GUILayout.Label("Crosshair Color (Hipfire)", TacticalGuiTheme.SubGoldStyle);
+            LocalProfile.CrosshairColorIndex = GUILayout.Toolbar(LocalProfile.CrosshairColorIndex, TacticalGuiTheme.CrosshairNames, GUILayout.Height(26));
+            GUILayout.Space(8);
 
             GUILayout.BeginHorizontal();
-            LocalProfile.VSync = GUILayout.Toggle(LocalProfile.VSync, "  VSync (Tear-Free)");
+            LocalProfile.VSync = GUILayout.Toggle(LocalProfile.VSync, "  VSync");
             LocalProfile.ShowHud = GUILayout.Toggle(LocalProfile.ShowHud, "  Show Combat HUD (Key: H)");
             LocalProfile.ShowPerformance = GUILayout.Toggle(LocalProfile.ShowPerformance, "  Show FPS Counter");
             GUILayout.EndHorizontal();
-            GUILayout.Space(14);
+            GUILayout.Space(10);
 
-            GUILayout.Label($"Mouse Sensitivity: {LocalProfile.Sensitivity:0.0}", TacticalGuiTheme.BodyStyle);
+            GUILayout.Label($"Scene Brightness / Exposure: {LocalProfile.Brightness:+0.00;-0.00;0.00}", TacticalGuiTheme.BodyStyle);
+            LocalProfile.Brightness = GUILayout.HorizontalSlider(LocalProfile.Brightness, -0.5f, 0.9f);
+            GUILayout.Space(6);
+
+            GUILayout.Label($"Mouse Sensitivity (Hip): {LocalProfile.Sensitivity:0.0}   |   ADS Aim Multiplier: {LocalProfile.AdsSensitivity:0.00}x", TacticalGuiTheme.BodyStyle);
+            GUILayout.BeginHorizontal();
             LocalProfile.Sensitivity = GUILayout.HorizontalSlider(LocalProfile.Sensitivity, 0.4f, 8f);
-            GUILayout.Space(8);
+            GUILayout.Space(14);
+            LocalProfile.AdsSensitivity = GUILayout.HorizontalSlider(LocalProfile.AdsSensitivity, 0.2f, 1.25f);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(6);
 
             GUILayout.Label($"Camera Field of View (FOV): {LocalProfile.FieldOfView:0}°", TacticalGuiTheme.BodyStyle);
             LocalProfile.FieldOfView = GUILayout.HorizontalSlider(LocalProfile.FieldOfView, 65f, 110f);
 
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("APPLY & RETURN TO LOBBY", TacticalGuiTheme.PrimaryBtnStyle, GUILayout.Height(36f))) _tab = 0;
+            if (GUILayout.Button("APPLY & RETURN TO LOBBY", TacticalGuiTheme.PrimaryBtnStyle, GUILayout.Height(34f))) _tab = 0;
             GUILayout.EndArea();
         }
 

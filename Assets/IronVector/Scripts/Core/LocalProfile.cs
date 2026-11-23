@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace IronVector
 {
-    /// <summary>Local player preferences (callsign, loadout, strategy, graphics, HUD). Saved in PlayerPrefs.</summary>
+    /// <summary>Local player preferences (callsign, loadout, strategy, graphics, aim, HUD). Saved in PlayerPrefs.</summary>
     public static class LocalProfile
     {
         const string KeyName = "iv_name";
@@ -10,8 +10,11 @@ namespace IronVector
         const string KeySecondary = "iv_secondary";
         const string KeyStrategy = "iv_strategy";
         const string KeySensitivity = "iv_sensitivity";
+        const string KeyAdsSensitivity = "iv_adssens";
         const string KeyFov = "iv_fov";
         const string KeyGraphics = "iv_gfx";
+        const string KeyBrightness = "iv_bright";
+        const string KeyCrosshairCol = "iv_xhaircol";
         const string KeyFps = "iv_fps";
         const string KeyVSync = "iv_vsync";
         const string KeyShowHud = "iv_hud";
@@ -23,8 +26,11 @@ namespace IronVector
         static int _secondary;
         static int _strategy;
         static float _sensitivity;
+        static float _adsSens;
         static float _fov;
         static int _graphics;
+        static float _brightness;
+        static int _crosshairCol;
         static int _targetFps;
         static bool _vsync;
         static bool _showHud;
@@ -40,8 +46,11 @@ namespace IronVector
             _secondary = PlayerPrefs.GetInt(KeySecondary, 0);
             _strategy = PlayerPrefs.GetInt(KeyStrategy, 0);
             _sensitivity = PlayerPrefs.GetFloat(KeySensitivity, 2.0f);
+            _adsSens = PlayerPrefs.GetFloat(KeyAdsSensitivity, 0.65f);
             _fov = PlayerPrefs.GetFloat(KeyFov, 82f);
-            _graphics = Mathf.Clamp(PlayerPrefs.GetInt(KeyGraphics, 2), 0, 3); // Default High
+            _graphics = Mathf.Clamp(PlayerPrefs.GetInt(KeyGraphics, 2), 0, 3);
+            _brightness = PlayerPrefs.GetFloat(KeyBrightness, 0.15f);
+            _crosshairCol = Mathf.Clamp(PlayerPrefs.GetInt(KeyCrosshairCol, 0), 0, 3);
             _targetFps = PlayerPrefs.GetInt(KeyFps, 144);
             _vsync = PlayerPrefs.GetInt(KeyVSync, 0) == 1;
             _showHud = PlayerPrefs.GetInt(KeyShowHud, 1) == 1;
@@ -78,6 +87,12 @@ namespace IronVector
             set { Load(); if (Mathf.Approximately(_sensitivity, value)) return; _sensitivity = value; PlayerPrefs.SetFloat(KeySensitivity, value); }
         }
 
+        public static float AdsSensitivity
+        {
+            get { Load(); return _adsSens; }
+            set { Load(); float c = Mathf.Clamp(value, 0.2f, 1.25f); if (Mathf.Approximately(_adsSens, c)) return; _adsSens = c; PlayerPrefs.SetFloat(KeyAdsSensitivity, c); }
+        }
+
         public static float FieldOfView
         {
             get { Load(); return _fov; }
@@ -88,6 +103,32 @@ namespace IronVector
         {
             get { Load(); return _graphics; }
             set { Load(); int c = Mathf.Clamp(value, 0, 3); if (_graphics == c) return; _graphics = c; PlayerPrefs.SetInt(KeyGraphics, c); GraphicsSettingsManager.Apply(); }
+        }
+
+        public static float Brightness
+        {
+            get { Load(); return _brightness; }
+            set { Load(); float c = Mathf.Clamp(value, -0.5f, 0.9f); if (Mathf.Approximately(_brightness, c)) return; _brightness = c; PlayerPrefs.SetFloat(KeyBrightness, c); GraphicsSettingsManager.Apply(); }
+        }
+
+        public static int CrosshairColorIndex
+        {
+            get { Load(); return _crosshairCol; }
+            set { Load(); int c = Mathf.Clamp(value, 0, 3); if (_crosshairCol == c) return; _crosshairCol = c; PlayerPrefs.SetInt(KeyCrosshairCol, c); }
+        }
+
+        public static Color CrosshairColor
+        {
+            get
+            {
+                switch (CrosshairColorIndex)
+                {
+                    case 0: return new Color(0.32f, 0.98f, 0.42f, 0.92f); // COD4 Tactical Green
+                    case 1: return new Color(1.00f, 1.00f, 1.00f, 0.90f); // Crisp White
+                    case 2: return new Color(0.28f, 0.88f, 1.00f, 0.92f); // Cyan
+                    default: return new Color(0.98f, 0.72f, 0.20f, 0.92f); // Amber Gold
+                }
+            }
         }
 
         public static int TargetFps

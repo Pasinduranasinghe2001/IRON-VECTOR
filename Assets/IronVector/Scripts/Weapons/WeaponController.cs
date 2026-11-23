@@ -44,11 +44,14 @@ namespace IronVector
         float _boltAnim;
         float _pumpAnim;
         float _sprintTilt;
+        float _inspectUntil;
+        float _inspectBlend;
         Vector2 _swayOffset;
 
         readonly RaycastHit[] _rayBuffer = new RaycastHit[32];
 
         public float AdsAmount => _ads;
+        public bool IsSteadyingBreath => IsSniperScope && IVInput.Held(IVKey.Sprint);
         public float LastShotTime { get; private set; } = -100f;
         public float CurrentSpreadDegrees { get; private set; } = 1.5f;
         public bool IsReloading => _reloading;
@@ -215,6 +218,11 @@ namespace IronVector
             if (_id.Motor != null) _id.Motor.AimingDown = _ads > 0.25f;
             if (_id.Look != null) _id.Look.FovMultiplier = Mathf.Lerp(1f, w.adsFovMultiplier, _ads);
 
+            if (IVInput.Down(IVKey.Inspect) && !_reloading && _ads < 0.1f)
+                _inspectUntil = Time.time + 2.6f;
+            if (wantsAds || IVInput.Held(IVKey.Fire) || _reloading || (_id.Motor != null && _id.Motor.IsSprinting))
+                _inspectUntil = 0f;
+
             float movePenalty = _id.Motor != null ? _id.Motor.Speed01 * (isGhost ? 0.95f : 1.35f) : 0f;
             float crouchBonus = _id.Motor != null && _id.Motor.IsCrouching ? 0.70f : 1f;
             CurrentSpreadDegrees = Mathf.Lerp(w.hipSpread, w.adsSpread, _ads) * crouchBonus + movePenalty * (1f - _ads * 0.72f);
@@ -303,17 +311,23 @@ namespace IronVector
             float bobX = Mathf.Sin(Time.time * bobSpeed) * moveBob * (1f - _ads * 0.85f);
             float bobY = Mathf.Abs(Mathf.Cos(Time.time * bobSpeed)) * moveBob * (1f - _ads * 0.85f);
 
+            bool inspecting = Time.time < _inspectUntil && !_reloading && _ads < 0.1f && !sprinting;
+            _inspectBlend = Mathf.MoveTowards(_inspectBlend, inspecting ? 1f : 0f, Time.deltaTime * 4.5f);
+
             Vector3 basePos = Vector3.Lerp(_hipLocalPos, _adsLocalPos, _ads);
+            Vector3 inspectOffset = new Vector3(-0.11f, 0.04f, -0.05f) * _inspectBlend;
             Vector3 sprintOffset = new Vector3(-0.07f, -0.04f, -0.05f) * _sprintTilt;
             Vector3 reloadOffset = _reloading ? new Vector3(0f, -0.14f, -0.04f) : Vector3.zero;
-            weaponHolder.localPosition = basePos + sprintOffset + reloadOffset
+            weaponHolder.localPosition = basePos + inspectOffset + sprintOffset + reloadOffset
                 + new Vector3(bobX + _swayOffset.x, -bobY + _swayOffset.y, -_recoilKickZ);
 
             Quaternion hipRot = Quaternion.Slerp(Quaternion.Euler(_hipLocalEuler), Quaternion.identity, _ads);
+            float inspWave = Mathf.Sin((_inspectUntil - Time.time) * 2.2f) * 14f;
+            Quaternion inspectRot = Quaternion.Euler(14f * _inspectBlend, (54f + inspWave) * _inspectBlend, -22f * _inspectBlend);
             Quaternion swayRot = Quaternion.Euler(-_swayOffset.y * 160f - _recoilKickPitch, _swayOffset.x * 160f, -_swayOffset.x * 220f);
             Quaternion sprintRot = Quaternion.Euler(14f * _sprintTilt, -24f * _sprintTilt, 8f * _sprintTilt);
             Quaternion reloadRot = _reloading ? Quaternion.Euler(28f, -15f, 18f) : Quaternion.identity;
-            weaponHolder.localRotation = hipRot * swayRot * sprintRot * reloadRot;
+            weaponHolder.localRotation = hipRot * inspectRot * swayRot * sprintRot * reloadRot;
 
             if (w.category == WeaponCategory.Sniper && _currentModel != null)
             {

@@ -10,7 +10,7 @@ namespace IronVector
     {
         Forward, Back, Left, Right,
         Jump, Sprint, Crouch, CrouchAlt,
-        Fire, Aim, Reload, Interact, Grenade,
+        Fire, Aim, Reload, Interact, Grenade, Inspect,
         Weapon1, Weapon2,
         Scoreboard, Pause, ToggleHud
     }
@@ -70,6 +70,7 @@ namespace IronVector
                 case IVKey.Reload: return kb?.rKey;
                 case IVKey.Interact: return kb?.fKey;
                 case IVKey.Grenade: return kb?.gKey;
+                case IVKey.Inspect: return kb?.vKey;
                 case IVKey.Weapon1: return kb?.digit1Key;
                 case IVKey.Weapon2: return kb?.digit2Key;
                 case IVKey.Scoreboard: return kb?.tabKey;
@@ -106,6 +107,7 @@ namespace IronVector
                 case IVKey.Reload: return KeyCode.R;
                 case IVKey.Interact: return KeyCode.F;
                 case IVKey.Grenade: return KeyCode.G;
+                case IVKey.Inspect: return KeyCode.V;
                 case IVKey.Weapon1: return KeyCode.Alpha1;
                 case IVKey.Weapon2: return KeyCode.Alpha2;
                 case IVKey.Scoreboard: return KeyCode.Tab;

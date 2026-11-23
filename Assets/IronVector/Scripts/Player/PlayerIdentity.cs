@@ -8,7 +8,7 @@ namespace IronVector
 {
     /// <summary>
     /// Hub component on Player: name, team, kills/deaths/score, active TacticalStrategy (4 COD4 perks),
-    /// and cached references to every sibling player system.
+    /// procedural multi-part SoldierRig team uniform styling, and cached references to sibling systems.
     /// </summary>
     public class PlayerIdentity : NetworkBehaviour
     {
@@ -37,6 +37,18 @@ namespace IronVector
         Renderer[] _bodyRenderers;
         Collider[] _hitboxColliders;
 
+        static readonly HashSet<string> TrimNames = new HashSet<string>
+        {
+            "ChestTeamPatch", "TeamArmband_L", "TeamArmband_R", "HelmetTeamStrip"
+        };
+
+        static readonly HashSet<string> ClothNames = new HashSet<string>
+        {
+            "Pelvis", "CombatShirt", "ShoulderPad_L", "ShoulderPad_R",
+            "Arm_R", "Arm_L", "UpperArm_R", "Forearm_R", "UpperArm_L", "Forearm_L",
+            "Thigh", "CargoPocket", "Shin"
+        };
+
         void Awake()
         {
             Health = GetComponent<PlayerHealth>();
@@ -49,7 +61,18 @@ namespace IronVector
             ElevatorUser = GetComponent<PlayerElevatorInteraction>();
             _cc = GetComponent<CharacterController>();
 
-            _bodyRenderers = GetComponentsInChildren<Renderer>(true);
+            EnsureMultiPartSoldier();
+
+            var bodyRendList = new List<Renderer>();
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                if (Weapons != null && Weapons.weaponHolder != null && r.transform.IsChildOf(Weapons.weaponHolder))
+                    continue;
+                bodyRendList.Add(r);
+            }
+            _bodyRenderers = bodyRendList.ToArray();
+
             Hitbox[] hitboxes = GetComponentsInChildren<Hitbox>(true);
             var cols = new List<Collider>();
             foreach (Hitbox hb in hitboxes)
@@ -60,6 +83,37 @@ namespace IronVector
             _hitboxColliders = cols.ToArray();
 
             Team.OnChange += OnTeamChanged;
+        }
+
+        void EnsureMultiPartSoldier()
+        {
+            if (Application.isBatchMode) return;
+            if (transform.Find("SoldierRig") != null) return;
+
+            Transform oldBody = transform.Find("Body");
+            if (oldBody != null)
+            {
+                var r = oldBody.GetComponent<Renderer>();
+                if (r != null) r.enabled = false;
+            }
+
+            Transform headTf = Motor != null && Motor.head != null ? Motor.head : transform.Find("Head");
+            if (headTf != null)
+            {
+                var hr = headTf.GetComponent<Renderer>();
+                if (hr != null) hr.enabled = false;
+                Transform oldVisor = headTf.Find("Visor");
+                if (oldVisor != null)
+                {
+                    var vr = oldVisor.GetComponent<Renderer>();
+                    if (vr != null) vr.enabled = false;
+                }
+            }
+
+            var refs = SoldierVisualBuilder.Build(transform, headTf, false,
+                new Color(0.18f, 0.24f, 0.34f), Teams.TeamColor(Teams.Alpha));
+            if (Motor != null && refs.TorsoPivot != null)
+                Motor.BindSoldierRig(refs.LeftLegPivot, refs.RightLegPivot, refs.TorsoPivot);
         }
 
         public override void OnStartNetwork()
@@ -116,9 +170,29 @@ namespace IronVector
         void ApplyTeamColor()
         {
             if (Application.isBatchMode || _bodyRenderers == null) return;
-            Color c = Teams.TeamColor(Team.Value);
+            Color trimCol = Teams.TeamColor(Team.Value);
+            Color clothCol = Team.Value == Teams.Bravo
+                ? new Color(0.46f, 0.36f, 0.25f) // Desert Coyote Tan (Bravo)
+                : (Team.Value == Teams.Alpha
+                    ? new Color(0.17f, 0.24f, 0.35f) // Urban Spec-Ops Slate Blue (Alpha)
+                    : new Color(0.28f, 0.30f, 0.24f)); // Solo Olive Tactical
+
             foreach (Renderer r in _bodyRenderers)
-                if (r != null && r.gameObject.name == "Body") r.material.color = c;
+            {
+                if (r == null) continue;
+                string gName = r.gameObject.name;
+                if (TrimNames.Contains(gName) || gName == "Body")
+                    SetRendererColor(r, trimCol);
+                else if (ClothNames.Contains(gName))
+                    SetRendererColor(r, clothCol);
+            }
+        }
+
+        static void SetRendererColor(Renderer r, Color c)
+        {
+            Material m = r.material;
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            else m.color = c;
         }
 
         public void RefreshState()
@@ -129,7 +203,16 @@ namespace IronVector
 
             if (_bodyRenderers != null)
                 foreach (Renderer r in _bodyRenderers)
-                    if (r != null) r.enabled = active;
+                {
+                    if (r == null) continue;
+                    string n = r.gameObject.name;
+                    if ((n == "Body" || n == "Head" || n == "Visor") && transform.Find("SoldierRig") != null)
+                    {
+                        r.enabled = false;
+                        continue;
+                    }
+                    r.enabled = active;
+                }
 
             if (_hitboxColliders != null)
                 foreach (Collider c in _hitboxColliders)
